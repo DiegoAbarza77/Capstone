@@ -599,7 +599,7 @@ TAG-OK/
 
 ## 🎯 Objetivo
 
-El objetivo de **TAG OK 2.0** es proporcionar una solución centralizada para que los conductores puedan **administrar la información, gastos y actividades relacionadas con sus vehículos**, reduciendo el ingreso manual de datos mediante herramientas de Inteligencia Artificial.
+El objetivo de este proyecto, **TAG OK 2.0** es proporcionar una solución centralizada para que los conductores puedan **administrar la información, gastos y actividades relacionadas con sus vehículos**, reduciendo el ingreso manual de datos mediante herramientas de Inteligencia Artificial.
 
 La aplicación busca integrar en un mismo ecosistema la información que normalmente se encuentra distribuida entre documentos, comprobantes, aplicaciones, sitios web y registros personales.
 
