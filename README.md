@@ -2,7 +2,7 @@
 
 **Tu copiloto inteligente para la gestión integral de tu vehículo.**
 
-> TAG OK 2.0 evoluciona desde una aplicación enfocada en el control de cobros TAG hacia un asistente inteligente que centraliza la información, gastos, documentos, mantenciones y necesidades del conductor en una sola aplicación.
+> TAG OK 2.0 evoluciona desde una aplicación enfocada al control de cobros TAG hacia un asistente inteligente que centraliza la información, gastos, documentos, mantenciones y necesidades del conductor en una sola aplicación.
 
 ---
 
