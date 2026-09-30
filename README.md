@@ -1,25 +1,32 @@
-# Tag OK 🚗💨
+# TAG OK 2.0 🚗💨
 
 **Tu copiloto inteligente para la gestión integral de tu vehículo.**
 
-> TAG OK 2.0 evoluciona desde una aplicación enfocada al control de cobros TAG hacia un asistente inteligente que centraliza la información, gastos, documentos, mantenciones y necesidades del conductor en una sola aplicación.
+> Evoluciona desde una app enfocada en el control de cobros de TAG hacia un asistente inteligente que centraliza vehículo, documentos, gastos y beneficios del conductor en un solo lugar.
+
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-blue.svg)](https://flutter.dev/)
+[![Dart](https://img.shields.io/badge/Dart-3.x-blue.svg)](https://dart.dev/)
+[![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth%20%2B%20RLS-3ECF8E.svg)](https://supabase.com/)
+[![Mapbox](https://img.shields.io/badge/Mapbox-GL%20Maps-000000.svg)](https://www.mapbox.com/)
+[![Gemini](https://img.shields.io/badge/Gemini-AI-8B5CF6.svg)](https://ai.google.dev/)
+[![Vercel](https://img.shields.io/badge/Preview%20interno-Vercel-black.svg)](https://vercel.com/)
 
 ---
 
 ## 📋 Tabla de Contenidos
 
 * [Descripción](#descripcion)
-* [Evolución del Proyecto](#evolucion-del-proyecto)
-* [Fase 1](#fase-1)
-* [Fase 2](#fase-2)
-* [Características Principales](#caracteristicas-principales)
-* [Inteligencia Artificial](#inteligencia-artificial)
-* [Dashboard y Visualización](#dashboard-y-visualizacion)
-* [Panel de Administración](#panel-de-administracion)
-* [Instalación y Ejecución](#instalacion-y-ejecucion)
-* [Stack Tecnológico](#stack-tecnologico)
-* [Estructura del Proyecto](#estructura-del-proyecto)
-* [Módulos de TAG OK 2.0](#modulos-de-tag-ok-20)
+* [Estado del proyecto](#estado-del-proyecto)
+* [Evolución: de v1 a 2.0](#evolucion)
+* [Fase 1 — Gestión de TAG y viajes](#fase-1)
+* [Fase 2 — Asistente inteligente](#fase-2)
+* [Registro Inteligente con IA](#registro-inteligente)
+* [Panel de Administración](#panel-admin)
+* [Arquitectura y Seguridad](#arquitectura-seguridad)
+* [Instalación y Ejecución](#instalacion)
+* [Preview interno en el celular (Vercel)](#despliegue)
+* [Stack Tecnológico](#stack)
+* [Estructura del Proyecto](#estructura)
 * [Objetivo](#objetivo)
 
 ---
@@ -28,90 +35,60 @@
 
 ## 📝 Descripción
 
-**TAG OK 2.0** es una aplicación móvil diseñada para ayudar a los conductores a centralizar y gestionar la información relacionada con sus vehículos.
-
-El proyecto nace como una evolución de la primera versión de TAG OK, originalmente enfocada principalmente en la gestión y control de cobros asociados al **TAG y los pórticos de autopistas**.
-
-En esta nueva versión, el sistema amplía sus funcionalidades para convertirse en un **asistente inteligente para el conductor**, permitiendo gestionar en un solo lugar:
-
-* 🚗 Información del vehículo.
-* 🧾 Documentación obligatoria.
-* 🛠️ Mantenciones.
-* 🅿️ Estacionamientos.
-* ⛽ Combustible.
-* 🛣️ Viajes y gastos asociados al TAG.
-* 📊 Presupuesto y estadísticas.
-* 🤖 Extracción de información mediante Inteligencia Artificial.
-* 🎁 Beneficios para conductores.
-
-El objetivo es disminuir el ingreso manual de información y facilitar el control de los principales gastos y responsabilidades asociados al vehículo.
+**TAG OK** es una suite para conductores chilenos: una app móvil/web y un panel de administración que, además de calcular en tiempo real el costo de tus viajes por autopistas concesionadas, está evolucionando hacia un **asistente integral del vehículo** — documentos, mantenciones, combustible, estacionamientos y beneficios, todo en un solo lugar, con captura asistida por Inteligencia Artificial.
 
 ---
 
-<a id="evolucion-del-proyecto"></a>
+<a id="estado-del-proyecto"></a>
 
-## 🔄 Evolución del Proyecto
+## 📊 Estado del proyecto
 
-### TAG OK V1
+Este README refleja el estado **real y verificado** del código, no solo el plan. Última verificación en vivo: **22 de septiembre de 2026**, contra un proyecto Supabase real.
 
-La primera versión estaba principalmente orientada a:
+| Módulo | Estado |
+| :----- | :----- |
+| 🔐 Backend, autenticación y seguridad (Supabase Auth + Postgres + RLS) | ✅ Migrado desde Firebase y verificado en vivo |
+| 🚗 Mi Vehículo (datos + documentos + vencimientos) | ✅ Implementado |
+| ⛽ Combustible (registro manual) | ✅ Implementado |
+| 🛣️ TAG, viajes y presupuesto (heredado de Fase 1) | ✅ Implementado |
+| 🤖 Registro Inteligente con IA — auditoría de boletas (PDF/CSV/XLSX **y foto**) | ✅ Implementado, con pantalla obligatoria de revisión y confirmación |
+| ⚙️ Panel de Administración (usuarios, pórticos, tarifas, reportes, auditoría, admins) | ✅ Implementado y probado en vivo |
+| 🚀 Preview interno en el celular (Vercel + GitHub) | ✅ Configurado, uso interno del equipo |
+| 🛠️ Mantenciones | ⏳ Base de datos y RLS listas, interfaz pendiente |
+| 🅿️ Estacionamientos + cronómetro | ⏳ Base de datos y RLS listas, interfaz pendiente |
+| 🎁 Beneficios (catálogo + backoffice) | ⏳ Base de datos lista, interfaz pendiente |
+| 🤖 IA aplicada a documentos, mantenciones, estacionamientos y combustible | ⏳ Pendiente (hoy solo cubre la auditoría de boletas) |
+| 📊 Dashboard "Mi Auto" integrador | ⏳ Pendiente (depende de los módulos de gasto anteriores) |
 
-* Control de viajes mediante TAG.
-* Identificación de pórticos.
-* Cálculo de tarifas.
-* Gestión de vehículos.
-* Control de presupuesto.
-* Historial de viajes.
-* Auditoría de cobros mediante archivos.
-* Panel administrativo para gestionar tarifas y pórticos.
+---
 
-### TAG OK 2.0
+<a id="evolucion"></a>
 
-La segunda versión amplía el alcance para transformar TAG OK en un **asistente inteligente para el conductor**.
+## 🔄 Evolución: de v1 a 2.0
 
-Además de mantener las funcionalidades relacionadas con TAG, incorpora nuevos módulos para administrar la información y los gastos generales del vehículo.
+**v1** estaba enfocada en el control de cobros de TAG: navegación con cálculo de tarifas en tiempo real, gestión de vehículos y presupuesto, y auditoría de boletas con IA — todo sobre **Firebase** (Auth + Firestore).
+
+**2.0** conserva y mejora todo lo anterior, y además:
+
+* Migra el backend completo de **Firebase a Supabase** (Postgres + Row Level Security + Edge Functions), corrigiendo de paso varios bugs de seguridad que existían en las reglas de Firestore.
+* Amplía el alcance del producto hacia un asistente integral del vehículo: documentos, mantenciones, estacionamientos, combustible y beneficios.
+* Formaliza la regla **"Manual + IA → Revisión → Confirmar → Guardar"**: ningún dato extraído por IA se guarda sin que el usuario lo revise y confirme.
+* Agrega soporte para auditar boletas **desde una foto**, no solo PDF/CSV/XLSX.
+* Mueve las llamadas a la IA de Gemini a **Edge Functions de servidor**, para que ninguna llave de API quede expuesta en la app.
 
 ---
 
 <a id="fase-1"></a>
 
-## 🟦 Fase 1 — Gestión de TAG y viajes
+## 🟦 Fase 1 — Gestión de TAG y viajes ✅
 
-La Fase 1 establece la base del sistema y se concentra en el control de viajes, vehículos, usuarios y pórticos.
+Base del sistema: control de viajes, vehículos, usuarios y pórticos.
 
-### 👤 Usuarios
-
-Permite gestionar la información básica del conductor y sus preferencias dentro de la aplicación.
-
-### 🚗 Vehículos
-
-Registro de vehículos asociados a cada usuario, incluyendo información como:
-
-* Patente.
-* Marca.
-* Categoría.
-* Fecha de ingreso.
-* Vehículo principal.
-
-### 🛣️ Pórticos
-
-Registro de los pórticos utilizados para calcular los costos de los viajes.
-
-El sistema contempla diferentes tipos de tarifas:
-
-* **TBFP** — Tarifa Base Fuera de Punta.
-* **TBP** — Tarifa Base Punta.
-* **TS** — Tarifa de Saturación.
-
-### 🗺️ Viajes
-
-Permite registrar y consultar los recorridos realizados por el usuario.
-
-El sistema puede utilizar información geográfica para identificar los pórticos presentes en una ruta y calcular el costo asociado.
-
-### 💰 Presupuesto
-
-Permite establecer un presupuesto mensual relacionado con los gastos del vehículo y visualizar su utilización.
+* **Usuarios** — información básica del conductor y sus preferencias.
+* **Vehículos** — patente, marca, categoría, fecha de ingreso, vehículo principal.
+* **Pórticos y tarifas** — cálculo dinámico según el tipo de tarifa: **TBFP** (Base Fuera de Punta), **TBP** (Base Punta), **TS** (Saturación).
+* **Viajes** — registro y consulta de recorridos; detección de pórticos en la ruta vía GPS (Mapbox + Geolocator).
+* **Presupuesto** — límite mensual con semaforización de alertas al 50%, 75%, 90% y 100% de uso.
 
 ---
 
@@ -119,479 +96,204 @@ Permite establecer un presupuesto mensual relacionado con los gastos del vehícu
 
 ## 🟩 Fase 2 — Asistente inteligente para el conductor
 
-La Fase 2 representa la evolución principal de TAG OK.
+### 🚗 Mi Vehículo ✅
 
-El objetivo es centralizar los diferentes gastos, documentos y actividades relacionadas con el vehículo, reduciendo la cantidad de información que el usuario debe ingresar manualmente.
+Ficha central del vehículo: patente, marca, modelo, año, categoría, tipo de combustible, kilometraje y alias.
 
-### 🚗 Mi Vehículo
+**Documentos** (✅ implementado, registro manual): Permiso de Circulación, Revisión Técnica, SOAP y Seguro Automotriz, cada uno con número, fechas, compañía y un estado calculado automáticamente — *Al día* / *Por vencer* / *Vencido*.
 
-El módulo **Mi Vehículo** permite consultar y administrar la información principal del vehículo.
+> 🔜 Planificado: registrar un documento fotografiando el carné/póliza y dejando que la IA precargue el formulario (hoy solo existe el registro manual para este módulo).
 
-Incluye:
+### 🛠️ Mantenciones ⏳
 
-* Patente.
-* Marca.
-* Modelo.
-* Categoría.
-* Año.
-* Kilometraje.
-* Información general del vehículo.
-* Documentación asociada.
+*Base de datos y políticas de seguridad ya migradas; falta la pantalla.* Cuando se construya: bitácora con fecha, kilometraje, taller, costo y descripción; clasificación automática (preventiva, cambio de aceite, frenos, neumáticos, otra); próxima mantención por fecha o kilometraje con recordatorios.
 
-El usuario puede mantener un historial actualizado de la información relevante de su vehículo.
+### 🅿️ Estacionamientos ⏳
 
----
+*Base de datos y políticas de seguridad ya migradas; falta la pantalla.* Cuando se construya: registro manual (lugar, fecha, entrada/salida, costo), cronómetro de "iniciar/finalizar" para registrar duración sin comprobante, y guardado de la ubicación GPS para recordar dónde quedó el vehículo.
 
-### 📄 Gestión de Documentos
+### ⛽ Combustible ✅
 
-TAG OK 2.0 permite registrar documentos importantes asociados al vehículo.
+Registro manual de cargas: fecha, kilometraje, estación, tipo de combustible (bencina, diésel, híbrido o eléctrico — preparado desde el inicio para electromovilidad), litros, precio por litro y total. Resumen de gasto y litros del mes por vehículo.
 
-Entre ellos:
+> 🔜 Planificado: cargar la boleta de la bomba de bencina como foto para precarga automática vía IA.
 
-* Permiso de Circulación.
-* Revisión Técnica.
-* SOAP.
-* Seguro Automotriz.
+### 🎁 Beneficios ⏳
 
-#### 🤖 Registro mediante IA
+*Base de datos lista (categoría, imagen, ubicación, vigencia, condiciones, destacado); falta la interfaz.* Cuando se construya: catálogo filtrable en la app por categoría/ubicación/vigencia, y un backoffice para crear, editar y activar/desactivar beneficios.
 
-El usuario puede cargar una fotografía o archivo PDF del documento.
+### 📊 Dashboard "Mi Auto" ⏳
 
-La Inteligencia Artificial analiza el documento y extrae información relevante para realizar una **precarga automática del formulario**.
-
-El usuario puede:
-
-1. Seleccionar o cargar el documento.
-2. Procesar el archivo mediante IA.
-3. Revisar la información extraída.
-4. Modificar los datos si es necesario.
-5. Confirmar el registro.
-
-Si la IA no puede extraer correctamente la información, el usuario puede utilizar el **formulario manual**.
-
-Esto permite mantener el control de la información sin depender exclusivamente del procesamiento automático.
+Pantalla de entrada que concentrará gasto del mes por categoría (TAG, combustible, estacionamiento, mantención), próxima mantención, próximo vencimiento y beneficios disponibles. Depende de que los módulos de gasto anteriores existan primero.
 
 ---
 
-### 🛠️ Mantenciones
+<a id="registro-inteligente"></a>
 
-El módulo de **Mantenciones** permite registrar y consultar el historial de mantenimiento del vehículo.
+## 🤖 Registro Inteligente con IA
 
-Cada registro puede incluir:
-
-* Taller.
-* Fecha.
-* Kilometraje.
-* Servicios realizados.
-* Repuestos utilizados.
-* Monto.
-* Tipo de mantención.
-
-#### Categorías de mantención
-
-* Preventiva.
-* Cambio de aceite.
-* Frenos.
-* Neumáticos.
-* Otra.
-
-El historial permite al usuario consultar cuánto ha gastado en mantenimiento y mantener un registro organizado de los trabajos realizados.
-
----
-
-### 🅿️ Estacionamientos
-
-El módulo de **Estacionamientos** permite registrar los gastos relacionados con estacionamientos.
-
-#### Registro manual
-
-El usuario puede ingresar directamente:
-
-* Lugar.
-* Fecha.
-* Hora de entrada.
-* Hora de salida.
-* Duración.
-* Monto.
-
-#### Registro mediante IA
-
-El usuario puede cargar una fotografía o documento del comprobante.
-
-La IA intenta identificar automáticamente:
-
-* Lugar.
-* Fecha.
-* Hora de entrada.
-* Hora de salida.
-* Duración.
-* Monto.
-
-La información extraída puede ser modificada antes de confirmar el registro.
-
----
-
-### ⏱️ Cronómetro de Estacionamiento
-
-TAG OK 2.0 incorpora un cronómetro para facilitar el registro de estacionamientos.
-
-El usuario puede:
-
-1. **Iniciar estacionamiento.**
-2. Mantener el cronómetro activo mientras permanece estacionado.
-3. **Finalizar estacionamiento.**
-4. Registrar la duración obtenida.
-
-Esta funcionalidad permite simplificar el registro cuando el usuario no dispone de un comprobante al momento de ingresar.
-
----
-
-### ⛽ Combustible
-
-El módulo de **Combustible** permite registrar y consultar los gastos relacionados con cargas de combustible.
-
-El usuario puede almacenar información como:
-
-* Fecha.
-* Tipo de combustible.
-* Litros.
-* Precio por litro.
-* Monto total.
-* Kilometraje.
-* Estación de servicio.
-
-Estos datos pueden utilizarse posteriormente para generar estadísticas sobre el consumo y los gastos del vehículo.
-
----
-
-### 🛣️ TAG y gastos de viajes
-
-Las funcionalidades relacionadas con TAG desarrolladas en la Fase 1 continúan formando parte de TAG OK 2.0.
-
-El sistema permite mantener información relacionada con:
-
-* Viajes.
-* Pórticos.
-* Tarifas.
-* Costos de recorridos.
-* Historial.
-* Presupuesto.
-
-De esta manera, los gastos de TAG pasan a formar parte de una visión más completa de los costos operativos del vehículo.
-
----
-
-<a id="caracteristicas-principales"></a>
-
-## ✨ Características Principales
-
-### 🛰️ Navegación y viajes
-
-* Cálculo de rutas.
-* Visualización de recorridos.
-* Identificación de pórticos presentes en una ruta.
-* Cálculo de costos asociados a los pórticos.
-* Manejo de tarifas según el período correspondiente.
-* Historial de viajes.
-
-### 🚗 Gestión del vehículo
-
-* Registro de vehículos.
-* Gestión de información del vehículo.
-* Patentes.
-* Kilometraje.
-* Documentación.
-* Historial de mantenciones.
-
-### 💰 Gestión de gastos
-
-* Gastos de TAG.
-* Combustible.
-* Estacionamientos.
-* Mantenciones.
-* Presupuesto mensual.
-* Historial de gastos.
-
-### 🤖 Automatización mediante IA
-
-* Procesamiento de fotografías.
-* Procesamiento de documentos PDF.
-* Extracción de información.
-* Precarga de formularios.
-* Revisión y edición de información obtenida.
-* Registro manual como alternativa.
-
----
-
-<a id="inteligencia-artificial"></a>
-
-## 🤖 Inteligencia Artificial
-
-Uno de los principales componentes de TAG OK 2.0 es la utilización de Inteligencia Artificial para disminuir el ingreso manual de información.
-
-La IA puede utilizarse para analizar documentos, comprobantes y fotografías relacionadas con el vehículo.
-
-### Flujo general
+### Flujo (regla obligatoria en todo flujo que use IA)
 
 ```text
-Usuario
-   │
-   ▼
-Carga fotografía / PDF
-   │
-   ▼
-Procesamiento mediante IA
-   │
-   ▼
-Extracción de información
-   │
-   ▼
-Formulario precargado
-   │
-   ▼
-Usuario revisa y modifica
-   │
-   ▼
-Confirmación
-   │
-   ▼
-Registro en el sistema
+Foto / PDF / CSV / XLSX
+        │
+        ▼
+  IA extrae los datos (Gemini, vía Edge Function — la llave nunca sale del servidor)
+        │
+        ▼
+  Formulario precargado
+        │
+        ▼
+  El usuario revisa y corrige
+        │
+        ▼
+  Confirmar y Guardar  ←── nada se persiste sin este paso explícito
 ```
 
-### Principio de confirmación
+### Estado real por módulo
 
-La información obtenida mediante IA **no se registra automáticamente sin revisión del usuario**.
+| Evidencia | Implementado en | Estado |
+| :-------- | :--------------- | :----- |
+| Boleta de peaje (PDF / CSV / XLSX / **foto**) | Auditoría | ✅ Con motor local determinístico + IA de respaldo, y pantalla de revisión obligatoria |
+| Permiso / RT / SOAP / Seguro | Mi Vehículo → Documentos | ⏳ Planificado |
+| Boleta / factura de taller | Mantenciones | ⏳ Planificado |
+| Boleta de combustible | Combustible | ⏳ Planificado |
+| Ticket de estacionamiento | Estacionamientos | ⏳ Planificado |
 
-El usuario mantiene la posibilidad de:
-
-* Revisar los datos.
-* Corregir información.
-* Completar campos faltantes.
-* Confirmar el registro.
-
-Si el procesamiento mediante IA no entrega información suficiente, el sistema permite realizar el ingreso de forma manual.
-
----
-
-<a id="dashboard-y-visualizacion"></a>
-
-## 📊 Dashboard y Visualización
-
-TAG OK 2.0 busca centralizar la información de gastos del vehículo para facilitar su consulta.
-
-El dashboard puede presentar información relacionada con:
-
-* Gastos de TAG.
-* Combustible.
-* Estacionamientos.
-* Mantenciones.
-* Gastos totales.
-* Presupuesto mensual.
-* Distribución de gastos.
-* Historial de gastos.
-
-Esto permite que el usuario pueda visualizar cómo se distribuyen los costos asociados a su vehículo durante un período determinado.
-
-### 💰 Control de Presupuesto
-
-El sistema permite establecer un presupuesto mensual y controlar su utilización.
-
-Se pueden generar diferentes niveles de alerta según el porcentaje utilizado:
-
-| Porcentaje | Estado                   |
-| :--------: | :----------------------- |
-|     50%    | 🟢 Seguimiento           |
-|     75%    | 🟡 Precaución            |
-|     90%    | 🟠 Alerta                |
-|    100%    | 🔴 Presupuesto alcanzado |
+La auditoría de boletas también incluye un **motor 100% local y gratuito** (sin IA) que lee de forma nativa los formatos oficiales de Autopista Central (CSV), y Costanera Norte / Vespucio Sur / Vespucio Norte (PDF), con la IA como respaldo cuando el formato no se reconoce — el usuario puede alternar entre ambos modos con un interruptor.
 
 ---
 
-<a id="panel-de-administracion"></a>
+<a id="panel-admin"></a>
 
 ## ⚙️ Panel de Administración
 
-TAG OK 2.0 incluye un panel administrativo destinado a la gestión global del sistema.
+Backoffice web para operar el negocio, verificado en vivo contra el mismo proyecto de Supabase que usan los clientes:
 
-### 👥 Usuarios
+* **Dashboard** — viajes recientes, distribución de costos por autopista, uso y distribución de cobros, transacciones y usuarios recientes.
+* **Usuarios** — consulta, edición de presupuesto/nombre, reseteo de contraseña, eliminación.
+* **Pórticos y Tarifas** — ABM en tiempo real de tarifa base/punta/saturación por pórtico.
+* **Reportes** — métricas agregadas y desglose de costos por concesionaria.
+* **Auditoría (bitácora)** — registro inmutable de cada acción administrativa, con quién, cuándo y qué cambió.
+* **Admins** — gestión de roles (`operador` / `super_admin`); crear y eliminar administradores pasa por Edge Functions con verificación de rol en el servidor, no en el cliente.
 
-* Consulta de usuarios.
-* Gestión de información.
-* Administración de presupuestos.
-* Gestión de cuentas.
-
-### 🚗 Vehículos
-
-* Consulta de vehículos registrados.
-* Visualización de información general.
-* Gestión administrativa.
-
-### 🛣️ Pórticos y tarifas
-
-* Gestión de pórticos.
-* Actualización de tarifas.
-* Administración de valores según horario o tipo de tarifa.
-
-### 📊 Estadísticas
-
-El panel puede mostrar métricas generales relacionadas con:
-
-* Usuarios registrados.
-* Vehículos.
-* Documentos procesados mediante IA.
-* Uso de los módulos.
-* Registros de gastos.
+Todos los cambios se reflejan **en tiempo real** en la app de los usuarios (Supabase Realtime).
 
 ---
 
-<a id="instalacion-y-ejecucion"></a>
+<a id="arquitectura-seguridad"></a>
+
+## 🔐 Arquitectura y Seguridad
+
+La migración de Firebase a Supabase no fue solo un cambio de proveedor — se aprovechó para corregir varios problemas de seguridad y diseño que existían en la versión anterior:
+
+* **Row Level Security (RLS) versionada y testeada.** Cada tabla tiene políticas explícitas (dueño-o-admin) en archivos SQL versionados en el repo (`Producto/supabase/migrations/`), no reglas ad hoc solo en el cliente.
+* **Sin escalación de privilegios por defecto.** Las reglas de Firestore anteriores asignaban `super_admin` por defecto si faltaba el campo de rol; las políticas de Supabase no tienen esa rama — sin rol explícito, no hay privilegios.
+* **Operaciones sensibles en el servidor, no en el cliente.** Crear o eliminar un administrador corre en **Edge Functions** con la *service-role key* (nunca expuesta al cliente) y verifica el rol de quien llama antes de ejecutar nada — reemplaza un truco anterior que abría una segunda sesión de Firebase en el propio cliente.
+* **Ninguna llave de IA en el navegador.** Las llamadas a Gemini pasan por una Edge Function (`gemini-proxy`); la API key vive solo como secreto de servidor.
+* **Referencias de dueño sin ambigüedad.** `vehiculos.usuario_id` es ahora una llave foránea `uuid` real hacia `auth.users`, eliminando un bug donde el dueño de un vehículo podía quedar guardado como texto o como referencia según la pantalla.
+
+---
+
+<a id="instalacion"></a>
 
 ## 🚀 Instalación y Ejecución
 
 ### Requisitos
 
-Antes de ejecutar el proyecto se recomienda contar con:
-
-* Flutter.
-* Dart.
-* Android Studio.
+* [Flutter](https://flutter.dev/) y Dart (vienen juntos).
 * Git.
-* Cuenta/proyecto configurado en Firebase.
-* Credenciales de los servicios externos utilizados por el proyecto.
+* Una cuenta/proyecto en [Supabase](https://supabase.com/) (gratis, sin tarjeta) con todas las migraciones SQL de `Producto/supabase/migrations/` aplicadas en orden (0001 a 0007) y las 3 Edge Functions de `Producto/supabase/functions/` desplegadas.
+* Credenciales de Mapbox y Gemini (opcionales para probar solo Auth/datos; requeridas para mapas e IA).
 
-### Clonar el repositorio
+### Pasos
 
 ```bash
 git clone https://github.com/DiegoAbarza77/TagOK2.0.git
+cd TagOK2.0/Producto
 ```
 
-### Acceder al proyecto
+Corre `setup.bat` (Windows) — instala las dependencias de ambas apps y te deja un menú para ejecutarlas. La primera vez genera `tag_ok/.env` y `admin/.env` **con una plantilla vacía que debes completar**:
+
+```env
+# Producto/tag_ok/.env
+SUPABASE_URL=https://tu-proyecto.supabase.co
+SUPABASE_ANON_KEY=tu-anon-key
+MAPBOX_ACCESS_TOKEN=tu-token-de-mapbox
+
+# Producto/admin/.env
+SUPABASE_URL=https://tu-proyecto.supabase.co
+SUPABASE_ANON_KEY=tu-anon-key
+```
+
+> ⚠️ A diferencia de la v1, estas credenciales **son obligatorias** — la app no arranca sin ellas. El instalador te avisa con un mensaje claro si intentas ejecutar la app antes de completar el `.env`, en vez de dejar que la app falle en silencio.
+>
+> `GEMINI_API_KEY` **no** va en ningún `.env` de la app — vive solo como secreto de la Edge Function `gemini-proxy` en el dashboard de Supabase, nunca en el cliente.
+
+O manualmente:
 
 ```bash
-cd TagOK2.0
+cd tag_ok && flutter pub get && flutter run
+cd ../admin && flutter pub get && flutter run
 ```
-
-### Instalar dependencias
-
-Para la aplicación móvil:
-
-```bash
-cd Producto/tag_ok
-flutter pub get
-```
-
-Para el panel administrativo:
-
-```bash
-cd ../admin
-flutter pub get
-```
-
-### Ejecutar la aplicación
-
-Aplicación móvil:
-
-```bash
-flutter run
-```
-
-Panel administrativo:
-
-```bash
-flutter run
-```
-
-> **Importante:** Las credenciales y claves utilizadas por servicios externos deben configurarse mediante el mecanismo definido para el entorno de desarrollo. No deben almacenarse como secretos directamente dentro del repositorio.
 
 ---
 
-<a id="stack-tecnologico"></a>
+<a id="despliegue"></a>
+
+## 📱 Preview interno en el celular (Vercel)
+
+Esto **no es un lanzamiento a producción** — es solo un preview privado que usa el equipo del proyecto para probar la app desde el celular mientras se desarrolla, con redeploy automático en cada `git push`. `Producto/tag_ok/vercel.json` deja lista la app web para desplegarse en [Vercel](https://vercel.com/) con este único propósito:
+
+1. Conecta el repo de GitHub a un proyecto nuevo de Vercel (privado, no listado públicamente).
+2. **Root Directory:** `Producto/tag_ok`.
+3. Agrega las **Environment Variables**: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `MAPBOX_ACCESS_TOKEN`.
+4. Deploy — el build clona Flutter, compila y publica `build/web` automáticamente. Si falta alguna variable, el build falla con un mensaje explícito en vez de publicar un sitio roto en silencio.
+5. Abre la URL que entrega Vercel desde el navegador del celular para probar cambios sin tener que compilar localmente.
+
+---
+
+<a id="stack"></a>
 
 ## 🛠️ Stack Tecnológico
 
-| Componente                    | Tecnología               |
-| :---------------------------- | :----------------------- |
-| **Framework**                 | Flutter                  |
-| **Lenguaje**                  | Dart                     |
-| **Base de Datos**             | Firebase Cloud Firestore |
-| **Autenticación**             | Firebase Authentication  |
-| **Mapas**                     | Flutter Map + Mapbox     |
-| **Inteligencia Artificial**   | Google Gemini            |
-| **Procesamiento de archivos** | File Picker              |
-| **Procesamiento PDF**         | Syncfusion PDF           |
-| **Archivos CSV**              | CSV                      |
-| **Control de versiones**      | Git + GitHub             |
+| Componente | Tecnología |
+| :--------- | :--------- |
+| **Framework** | Flutter (móvil, web y desktop) |
+| **Lenguaje** | Dart |
+| **Base de datos** | Supabase (Postgres + Row Level Security) |
+| **Autenticación** | Supabase Auth |
+| **Funciones de servidor** | Supabase Edge Functions (Deno) |
+| **Tiempo real** | Supabase Realtime |
+| **Mapas** | Flutter Map + Mapbox API |
+| **Inteligencia Artificial** | Google Gemini (vía Edge Function) |
+| **Procesamiento de archivos** | file_picker, syncfusion_flutter_pdf, excel |
+| **Despliegue web** | Vercel |
+| **Control de versiones** | Git + GitHub |
 
 ---
 
-<a id="estructura-del-proyecto"></a>
+<a id="estructura"></a>
 
 ## 📂 Estructura del Proyecto
 
 ```text
-TAG-OK/
+TAG-OK2.1/
 │
 ├── Producto/
+│   ├── setup.bat                # Instalador + menú de ejecución
 │   │
-│   ├── setup.bat
+│   ├── tag_ok/                  # App móvil/web (Flutter)
+│   ├── admin/                   # Panel de administración (Flutter)
 │   │
-│   ├── tag_ok/
-│   │   └── # Código fuente de la aplicación móvil
+│   ├── supabase/
+│   │   ├── migrations/          # Esquema SQL + RLS, numerado (0001 a 0007)
+│   │   └── functions/           # Edge Functions (create-admin, delete-user, gemini-proxy)
 │   │
-│   ├── admin/
-│   │   └── # Código fuente del panel administrativo
-│   │
-│   └── Base de datos/
-│       └── # Esquemas, reportes y configuración de datos
+│   └── Base de datos/           # Documentación y exportación de la BD de la v1 (Firebase, histórico)
 │
-├── Documentacion/
-│   └── # Documentación, diagramas, manuales y mockups
-│
-└── Gestion/
-    └── # Cronogramas, Trello, backlog y gestión del proyecto
+└── README.md
 ```
-
----
-
-<a id="modulos-de-tag-ok-20"></a>
-
-## 🧩 Módulos de TAG OK 2.0
-
-```text
-                         TAG OK 2.0
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-     🚗 Vehículo          💰 Gastos             🤖 IA
-        │                     │                     │
-        ├─ Documentos        ├─ TAG               ├─ PDF
-        ├─ Información       ├─ Combustible       ├─ Imágenes
-        └─ Estado            ├─ Estacionamiento   └─ Precarga
-                             └─ Mantenciones
-                                      │
-                                      ▼
-                              📊 Dashboard
-                                      │
-                                      ▼
-                              ⚙️ Administración
-```
-
-### Resumen de módulos
-
-| Módulo                   | Descripción                                      |
-| :----------------------- | :----------------------------------------------- |
-| 🚗 **Mi Vehículo**       | Información general y documentación del vehículo |
-| 📄 **Documentos**        | Permiso de Circulación, RT, SOAP y Seguro        |
-| 🛠️ **Mantenciones**     | Historial de servicios, repuestos y gastos       |
-| 🅿️ **Estacionamientos** | Registro de estacionamientos y gastos            |
-| ⏱️ **Cronómetro**        | Control de duración del estacionamiento          |
-| ⛽ **Combustible**        | Registro y seguimiento de cargas de combustible  |
-| 🛣️ **TAG**              | Viajes, pórticos, tarifas y costos               |
-| 💰 **Presupuesto**       | Control del gasto mensual                        |
-| 🤖 **IA**                | Extracción y precarga de información             |
-| 📊 **Dashboard**         | Visualización y análisis de gastos               |
-| 🎁 **Beneficios**        | Catálogo de beneficios para conductores          |
-| ⚙️ **Administración**    | Gestión global del sistema                       |
 
 ---
 
@@ -599,17 +301,8 @@ TAG-OK/
 
 ## 🎯 Objetivo
 
-El objetivo de este proyecto, **TAG OK 2.0** es proporcionar una solución centralizada para que los conductores puedan **administrar la información, gastos y actividades relacionadas con sus vehículos**, reduciendo el ingreso manual de datos mediante herramientas de Inteligencia Artificial.
-
-La aplicación busca integrar en un mismo ecosistema la información que normalmente se encuentra distribuida entre documentos, comprobantes, aplicaciones, sitios web y registros personales.
+Dar a los conductores una solución centralizada para administrar la información, los gastos y las actividades de su vehículo, reduciendo el ingreso manual de datos mediante IA — sin nunca guardar un dato que el usuario no haya confirmado.
 
 ---
 
-## TAG OK 2.0
-
-**Asistente inteligente para el conductor.**
-
-Una plataforma para centralizar la gestión del vehículo, sus gastos, documentos y actividades en un solo lugar.
-
----
-
+**TAG OK 2.0** · Asistente inteligente para el conductor · [gruposentte.cl](https://gruposentte.cl)
