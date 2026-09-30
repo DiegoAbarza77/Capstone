@@ -314,6 +314,7 @@ class ProfileScreen extends ConsumerWidget {
   void _mostrarOpcionesNotificaciones(BuildContext context, String uid, Map<String, dynamic> userData) {
     bool cobros = userData['notif_cobros'] ?? true;
     bool presupuesto = userData['notif_presupuesto'] ?? true;
+    bool vencimientos = userData['notif_vencimientos'] ?? true;
 
     showModalBottomSheet(
       context: context,
@@ -374,6 +375,27 @@ class ProfileScreen extends ConsumerWidget {
                             .update({'notif_presupuesto': val}).eq('id', uid);
                       } catch (e) {
                         setModalState(() => presupuesto = !val);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('No se pudo guardar la preferencia.')),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                  SwitchListTile(
+                    activeThumbColor: primaryColor,
+                    title: Text('Vencimientos de documentos', style: TextStyle(color: textMain)),
+                    subtitle: Text('Avisos 30 días antes y el día que vence un documento del vehículo.', style: TextStyle(color: textMuted, fontSize: 12)),
+                    value: vencimientos,
+                    onChanged: (val) async {
+                      setModalState(() => vencimientos = val);
+                      try {
+                        await Supabase.instance.client
+                            .from('usuarios')
+                            .update({'notif_vencimientos': val}).eq('id', uid);
+                      } catch (e) {
+                        setModalState(() => vencimientos = !val);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('No se pudo guardar la preferencia.')),

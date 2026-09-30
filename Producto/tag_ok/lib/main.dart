@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Importa dotenv
 import 'screens/login_screen.dart'; // Importa tu nueva pantalla
 import 'screens/home_screen.dart'; // Importa la pantalla principal
+import 'data/services/notificaciones_vencimiento_service.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Importa Riverpod
 
@@ -23,6 +24,12 @@ void main() async {
     url: dotenv.env['SUPABASE_URL']!,
     publishableKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
+
+  // 4. Inicializa el plugin de notificaciones locales (vencimientos de
+  // documentos del vehículo). No pide permiso todavía -- eso ocurre recién
+  // cuando el usuario entra al módulo de Documentos, para no interrumpir el
+  // primer arranque de la app con un diálogo de permisos.
+  await NotificacionesVencimientoService().init();
 
   runApp(const ProviderScope(child: MyApp()));
 }

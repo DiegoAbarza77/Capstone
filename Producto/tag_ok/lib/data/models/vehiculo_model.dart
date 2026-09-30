@@ -17,6 +17,7 @@ class VehiculoModel {
   final double? kilometraje;
   final String? alias;
   final DateTime? fechaIngreso;
+  final String? fotoUrl;
 
   VehiculoModel({
     required this.id,
@@ -30,6 +31,7 @@ class VehiculoModel {
     this.kilometraje,
     this.alias,
     this.fechaIngreso,
+    this.fotoUrl,
   });
 
   factory VehiculoModel.fromJson(Map<String, dynamic> row) {
@@ -47,6 +49,7 @@ class VehiculoModel {
       kilometraje: (row['kilometraje'] as num?)?.toDouble(),
       alias: row['alias'],
       fechaIngreso: row['fecha_ingreso'] != null ? DateTime.parse(row['fecha_ingreso']) : null,
+      fotoUrl: row['foto_url'],
     );
   }
 
@@ -61,6 +64,7 @@ class VehiculoModel {
       'tipo_combustible': tipoCombustible,
       'kilometraje': kilometraje,
       'alias': alias,
+      'foto_url': fotoUrl,
     };
   }
 }

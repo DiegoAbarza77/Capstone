@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/vehiculo_model.dart';
 import '../data/models/documento_vehiculo_model.dart';
@@ -88,7 +89,29 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     }
   }
 
-  Future<bool> _agregarVehiculo() async {
+  /// Sube la foto a Storage en la ruta "uid/vehiculoId.ext" (mismo patrón de
+  /// bucket-público-lectura + RLS-por-carpeta-de-uid que ya usa el avatar de
+  /// perfil) y devuelve la URL pública con un parámetro de versión, para que
+  /// no quede cacheada la foto anterior con el mismo nombre de archivo.
+  Future<String> _subirFotoVehiculo(String vehiculoId, XFile foto) async {
+    final user = Supabase.instance.client.auth.currentUser!;
+    final bytes = await foto.readAsBytes();
+    final rawExt = foto.name.contains('.') ? foto.name.split('.').last.toLowerCase() : 'jpg';
+    final ext = rawExt == 'jpg' || rawExt == 'jpeg' || rawExt == 'png' || rawExt == 'webp' ? rawExt : 'jpg';
+    final path = '${user.id}/$vehiculoId.$ext';
+    final storage = Supabase.instance.client.storage.from('vehiculo_fotos');
+
+    await storage.uploadBinary(
+      path,
+      bytes,
+      fileOptions: FileOptions(upsert: true, contentType: 'image/${ext == 'jpg' ? 'jpeg' : ext}'),
+    );
+
+    final publicUrl = storage.getPublicUrl(path);
+    return '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  Future<bool> _agregarVehiculo({XFile? foto}) async {
     final patente = _patenteController.text.trim().toUpperCase();
     final categoria = _categoriaSeleccionada;
     final marca = _marcaController.text.trim();
@@ -112,17 +135,38 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     }
 
     try {
-      await Supabase.instance.client.from('vehiculos').insert({
-        'patente': patente,
-        'categoria': categoria,
-        'marca': marca.isNotEmpty ? marca : 'No especificada',
-        'modelo': _modeloController.text.trim().isEmpty ? null : _modeloController.text.trim(),
-        'anio': int.tryParse(_anioController.text.trim()),
-        'tipo_combustible': _tipoCombustibleSeleccionado,
-        'kilometraje': double.tryParse(_kilometrajeController.text.trim()),
-        'alias': _aliasController.text.trim().isEmpty ? null : _aliasController.text.trim(),
-        'usuario_id': user.id,
-      });
+      // .select().single() para obtener el id generado: la foto se sube
+      // recién después, porque su ruta en Storage usa el id del vehículo.
+      final inserted = await Supabase.instance.client
+          .from('vehiculos')
+          .insert({
+            'patente': patente,
+            'categoria': categoria,
+            'marca': marca.isNotEmpty ? marca : 'No especificada',
+            'modelo': _modeloController.text.trim().isEmpty ? null : _modeloController.text.trim(),
+            'anio': int.tryParse(_anioController.text.trim()),
+            'tipo_combustible': _tipoCombustibleSeleccionado,
+            'kilometraje': double.tryParse(_kilometrajeController.text.trim()),
+            'alias': _aliasController.text.trim().isEmpty ? null : _aliasController.text.trim(),
+            'usuario_id': user.id,
+          })
+          .select()
+          .single();
+
+      if (foto != null) {
+        try {
+          final fotoUrl = await _subirFotoVehiculo(inserted['id'], foto);
+          await Supabase.instance.client.from('vehiculos').update({'foto_url': fotoUrl}).eq('id', inserted['id']);
+        } catch (e) {
+          // El vehículo ya se creó correctamente; que falle solo la foto no
+          // debería impedir el flujo -- se puede agregar después editando.
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Vehículo creado, pero no se pudo subir la foto: $e'), backgroundColor: Colors.orange),
+            );
+          }
+        }
+      }
 
       _patenteController.clear();
       _marcaController.clear();
@@ -134,7 +178,7 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
         _categoriaSeleccionada = 'AUTO';
         _tipoCombustibleSeleccionado = null;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -218,6 +262,21 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (data['foto_url'] != null) ...[
+                  Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        data['foto_url'],
+                        height: 140,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 Text('Patente: ${data['patente']}', style: TextStyle(color: textMain, fontSize: 18)),
                 const SizedBox(height: 8),
                 Text('Tipo: ${data['categoria']}', style: TextStyle(color: textMuted, fontSize: 16)),
@@ -324,12 +383,41 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     final TextEditingController aliasCtrl = TextEditingController(text: data['alias']?.toString() ?? '');
     String categoriaSel = data['categoria'] ?? 'AUTO';
     String? tipoCombustibleSel = kTiposCombustible.contains(data['tipo_combustible']) ? data['tipo_combustible'] : null;
+    String? fotoUrlActual = data['foto_url'];
+    bool subiendoFoto = false;
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            Future<void> cambiarFoto() async {
+              final picker = ImagePicker();
+              final picked = await picker.pickImage(
+                source: ImageSource.gallery,
+                maxWidth: 800,
+                maxHeight: 800,
+                imageQuality: 85,
+              );
+              if (picked == null) return;
+              setModalState(() => subiendoFoto = true);
+              try {
+                final fotoUrl = await _subirFotoVehiculo(data['id'], picked);
+                await Supabase.instance.client.from('vehiculos').update({'foto_url': fotoUrl}).eq('id', data['id']);
+                setModalState(() {
+                  fotoUrlActual = fotoUrl;
+                  subiendoFoto = false;
+                });
+              } catch (e) {
+                setModalState(() => subiendoFoto = false);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('No se pudo actualizar la foto: $e'), backgroundColor: Colors.redAccent),
+                  );
+                }
+              }
+            }
+
             return AlertDialog(
               backgroundColor: navBgColor,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -339,6 +427,26 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Center(
+                      child: GestureDetector(
+                        onTap: subiendoFoto ? null : cambiarFoto,
+                        child: CircleAvatar(
+                          radius: 40,
+                          backgroundColor: bgColor,
+                          backgroundImage: fotoUrlActual != null ? NetworkImage(fotoUrlActual!) : null,
+                          child: subiendoFoto
+                              ? const CircularProgressIndicator()
+                              : fotoUrlActual == null
+                                  ? Icon(Icons.add_a_photo_outlined, color: textMuted, size: 28)
+                                  : null,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Center(
+                      child: Text('Toca para cambiar la foto', style: TextStyle(color: textMuted, fontSize: 12)),
+                    ),
+                    const SizedBox(height: 16),
                     TextField(
                       controller: patenteCtrl,
                       style: TextStyle(color: textMain),
@@ -555,6 +663,8 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
   }
 
   void _mostrarFormularioAgregarVehiculo() {
+    XFile? fotoSeleccionada;
+
     showDialog(
       context: context,
       builder: (context) {
@@ -569,6 +679,38 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Center(
+                      child: GestureDetector(
+                        onTap: () async {
+                          final picker = ImagePicker();
+                          final picked = await picker.pickImage(
+                            source: ImageSource.gallery,
+                            maxWidth: 800,
+                            maxHeight: 800,
+                            imageQuality: 85,
+                          );
+                          if (picked != null) setModalState(() => fotoSeleccionada = picked);
+                        },
+                        child: FutureBuilder<Uint8List>(
+                          future: fotoSeleccionada?.readAsBytes(),
+                          builder: (context, snapshot) {
+                            return CircleAvatar(
+                              radius: 40,
+                              backgroundColor: bgColor,
+                              backgroundImage: snapshot.hasData ? MemoryImage(snapshot.data!) : null,
+                              child: snapshot.hasData
+                                  ? null
+                                  : Icon(Icons.add_a_photo_outlined, color: textMuted, size: 28),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Center(
+                      child: Text('Foto (opcional)', style: TextStyle(color: textMuted, fontSize: 12)),
+                    ),
+                    const SizedBox(height: 16),
                     TextField(
                       controller: _patenteController,
                       style: TextStyle(color: textMain),
@@ -707,7 +849,7 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: () async {
-                    bool success = await _agregarVehiculo();
+                    bool success = await _agregarVehiculo(foto: fotoSeleccionada);
                     if (success && context.mounted) {
                       Navigator.pop(context);
                     }
@@ -857,14 +999,19 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                 margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.directions_car, color: primaryColor),
-                  ),
+                  leading: data['foto_url'] != null
+                      ? CircleAvatar(
+                          backgroundColor: bgColor,
+                          backgroundImage: NetworkImage(data['foto_url']),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: bgColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.directions_car, color: primaryColor),
+                        ),
                   title: Text(
                     (data['alias'] as String?)?.trim().isNotEmpty == true ? data['alias'] : patente,
                     style: TextStyle(color: textMain, fontWeight: FontWeight.bold),
