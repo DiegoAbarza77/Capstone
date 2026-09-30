@@ -22,7 +22,7 @@
 * [Registro Inteligente con IA](#registro-inteligente)
 * [Panel de Administración](#panel-admin)
 * [Arquitectura y Seguridad](#arquitectura-seguridad)
-* [Instalación y Ejecución](#instalacion)
+* [Instalación y Ejecución](#instalacion) (guía detallada en [INSTALACION.md](INSTALACION.md))
 * [Stack Tecnológico](#stack)
 * [Estructura del Proyecto](#estructura)
 * [Objetivo](#objetivo)
@@ -196,11 +196,13 @@ La migración de Firebase a Supabase no fue solo un cambio de proveedor — se a
 
 ## 🚀 Instalación y Ejecución
 
+> 📘 ¿Primera vez montando el proyecto? Sigue la **[guía de instalación paso a paso](INSTALACION.md)**: incluye la configuración de Supabase, las Edge Functions, el primer administrador y los problemas frecuentes. Lo de abajo es un resumen.
+
 ### Requisitos
 
 * [Flutter](https://flutter.dev/) y Dart (vienen juntos).
 * Git.
-* Una cuenta/proyecto en [Supabase](https://supabase.com/) (gratis, sin tarjeta) con todas las migraciones SQL de `Producto/supabase/migrations/` aplicadas en orden (0001 a 0007) y las 3 Edge Functions de `Producto/supabase/functions/` desplegadas.
+* Una cuenta/proyecto en [Supabase](https://supabase.com/) (gratis, sin tarjeta) con todas las migraciones SQL de `Producto/supabase/migrations/` aplicadas en orden (0001 a 0010) y las 3 Edge Functions de `Producto/supabase/functions/` desplegadas.
 * Credenciales de Mapbox y Gemini (opcionales para probar solo Auth/datos; requeridas para mapas e IA).
 
 ### Pasos
@@ -269,11 +271,12 @@ TAG-OK2.1/
 │   ├── admin/                   # Panel de administración (Flutter)
 │   │
 │   ├── supabase/
-│   │   ├── migrations/          # Esquema SQL + RLS, numerado (0001 a 0007)
+│   │   ├── migrations/          # Esquema SQL + RLS, numerado (0001 a 0010)
 │   │   └── functions/           # Edge Functions (create-admin, delete-user, gemini-proxy)
 │   │
 │   └── Base de datos/           # Documentación y exportación de la BD de la v1 (Firebase, histórico)
 │
+├── INSTALACION.md               # Guía de instalación paso a paso
 └── README.md
 ```
 
