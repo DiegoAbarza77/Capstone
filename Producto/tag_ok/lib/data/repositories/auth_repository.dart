@@ -54,6 +54,26 @@ class AuthRepository {
     }
   }
 
+  // Reautentica con la contraseña actual antes de cambiarla. Supabase no
+  // exige esto para updateUser (la sesión ya está autenticada), pero evita
+  // que alguien con el celular desbloqueado cambie la contraseña sin saberla.
+  Future<void> reauthenticate(String email, String currentPassword) async {
+    try {
+      await _client.auth.signInWithPassword(email: email, password: currentPassword);
+    } catch (e) {
+      throw _handleAuthException(e);
+    }
+  }
+
+  // Cambiar la contraseña de la sesión actual
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+    } catch (e) {
+      throw _handleAuthException(e);
+    }
+  }
+
   // Manejador de errores amigable
   String _handleAuthException(dynamic e) {
     if (e is AuthException) {
