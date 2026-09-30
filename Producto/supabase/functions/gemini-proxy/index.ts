@@ -19,6 +19,30 @@ const corsHeaders = {
 // pide migrar a gemini-3.6-flash); confirmado probando la key real.
 const GEMINI_MODEL = "gemini-3.6-flash";
 
+const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+const MAX_PROMPT_CHARS = 20_000;
+// 8 MB de archivo ≈ 10,7 M caracteres en base64.
+const MAX_BASE64_CHARS = 11_000_000;
+
+// Límite por usuario: máx. 10 llamadas por minuto. Es en memoria, así que
+// se reinicia con cada instancia de la función; frena el abuso casual sin
+// necesitar una tabla extra.
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const callsByUser = new Map<string, number[]>();
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now();
+  const recent = (callsByUser.get(userId) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  if (recent.length >= RATE_LIMIT_MAX) {
+    callsByUser.set(userId, recent);
+    return true;
+  }
+  recent.push(now);
+  callsByUser.set(userId, recent);
+  return false;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -66,6 +90,29 @@ Deno.serve(async (req) => {
 
   if (!body.prompt) {
     return new Response("prompt es requerido", { status: 400, headers: corsHeaders });
+  }
+
+  // Límites para que una cuenta cualquiera no pueda usar este proxy como
+  // acceso gratuito a la cuota de Gemini (el registro es abierto).
+  if (body.prompt.length > MAX_PROMPT_CHARS) {
+    return new Response("prompt demasiado largo", { status: 413, headers: corsHeaders });
+  }
+  if (body.imageBase64 || body.imageMimeType) {
+    if (!body.imageBase64 || !body.imageMimeType) {
+      return new Response("imageBase64 e imageMimeType van juntos", { status: 400, headers: corsHeaders });
+    }
+    if (!ALLOWED_MIME_TYPES.has(body.imageMimeType)) {
+      return new Response("Tipo de archivo no permitido", { status: 415, headers: corsHeaders });
+    }
+    if (body.imageBase64.length > MAX_BASE64_CHARS) {
+      return new Response("Archivo demasiado grande (máx. 8 MB)", { status: 413, headers: corsHeaders });
+    }
+  }
+  if (isRateLimited(callerData.user.id)) {
+    return new Response("Demasiadas solicitudes, intenta en un minuto", {
+      status: 429,
+      headers: { ...corsHeaders, "Retry-After": "60" },
+    });
   }
 
   // Si viene una imagen (foto de boleta), se manda como inline_data junto
