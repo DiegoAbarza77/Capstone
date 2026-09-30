@@ -9,7 +9,6 @@
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth%20%2B%20RLS-3ECF8E.svg)](https://supabase.com/)
 [![Mapbox](https://img.shields.io/badge/Mapbox-GL%20Maps-000000.svg)](https://www.mapbox.com/)
 [![Gemini](https://img.shields.io/badge/Gemini-AI-8B5CF6.svg)](https://ai.google.dev/)
-[![Vercel](https://img.shields.io/badge/Preview%20interno-Vercel-black.svg)](https://vercel.com/)
 
 ---
 
@@ -24,7 +23,6 @@
 * [Panel de Administración](#panel-admin)
 * [Arquitectura y Seguridad](#arquitectura-seguridad)
 * [Instalación y Ejecución](#instalacion)
-* [Preview interno en el celular (Vercel)](#despliegue)
 * [Stack Tecnológico](#stack)
 * [Estructura del Proyecto](#estructura)
 * [Objetivo](#objetivo)
@@ -53,7 +51,6 @@ Este README refleja el estado **real y verificado** del código, no solo el plan
 | 🛣️ TAG, viajes y presupuesto (heredado de Fase 1) | ✅ Implementado |
 | 🤖 Registro Inteligente con IA — auditoría de boletas (PDF/CSV/XLSX **y foto**) | ✅ Implementado, con pantalla obligatoria de revisión y confirmación |
 | ⚙️ Panel de Administración (usuarios, pórticos, tarifas, reportes, auditoría, admins) | ✅ Implementado y probado en vivo |
-| 🚀 Preview interno en el celular (Vercel + GitHub) | ✅ Configurado, uso interno del equipo |
 | 🛠️ Mantenciones | ⏳ Base de datos y RLS listas, interfaz pendiente |
 | 🅿️ Estacionamientos + cronómetro | ⏳ Base de datos y RLS listas, interfaz pendiente |
 | 🎁 Beneficios (catálogo + backoffice) | ⏳ Base de datos lista, interfaz pendiente |
@@ -239,20 +236,6 @@ cd ../admin && flutter pub get && flutter run
 
 ---
 
-<a id="despliegue"></a>
-
-## 📱 Preview interno en el celular (Vercel)
-
-Esto **no es un lanzamiento a producción** — es solo un preview privado que usa el equipo del proyecto para probar la app desde el celular mientras se desarrolla, con redeploy automático en cada `git push`. `Producto/tag_ok/vercel.json` deja lista la app web para desplegarse en [Vercel](https://vercel.com/) con este único propósito:
-
-1. Conecta el repo de GitHub a un proyecto nuevo de Vercel (privado, no listado públicamente).
-2. **Root Directory:** `Producto/tag_ok`.
-3. Agrega las **Environment Variables**: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `MAPBOX_ACCESS_TOKEN`.
-4. Deploy — el build clona Flutter, compila y publica `build/web` automáticamente. Si falta alguna variable, el build falla con un mensaje explícito en vez de publicar un sitio roto en silencio.
-5. Abre la URL que entrega Vercel desde el navegador del celular para probar cambios sin tener que compilar localmente.
-
----
-
 <a id="stack"></a>
 
 ## 🛠️ Stack Tecnológico
@@ -268,7 +251,6 @@ Esto **no es un lanzamiento a producción** — es solo un preview privado que u
 | **Mapas** | Flutter Map + Mapbox API |
 | **Inteligencia Artificial** | Google Gemini (vía Edge Function) |
 | **Procesamiento de archivos** | file_picker, syncfusion_flutter_pdf, excel |
-| **Despliegue web** | Vercel |
 | **Control de versiones** | Git + GitHub |
 
 ---
