@@ -4,6 +4,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart'; // Importa dotenv
 import 'screens/login_screen.dart'; // Importa tu nueva pantalla
 import 'screens/home_screen.dart'; // Importa la pantalla principal
 import 'data/services/notificaciones_vencimiento_service.dart';
+import 'data/services/conexion_servidor_service.dart';
+import 'presentation/widgets/banner_sin_conexion.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Importa Riverpod
 
@@ -31,6 +33,10 @@ void main() async {
   // primer arranque de la app con un diálogo de permisos.
   await NotificacionesVencimientoService().init();
 
+  // 5. Empieza a vigilar la conexión con el servidor para mostrar el aviso
+  // "Sin conexión" cuando falle internet o el DNS.
+  ConexionServidorService.instance.iniciar();
+
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -42,6 +48,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'TagOk',
+      builder: (context, child) => BannerSinConexion(child: child ?? const SizedBox.shrink()),
       home: StreamBuilder<AuthState>(
         stream: Supabase.instance.client.auth.onAuthStateChange,
         builder: (context, snapshot) {

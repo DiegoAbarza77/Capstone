@@ -17,7 +17,7 @@ import 'package:flutter/foundation.dart';
 import 'package:vibration/vibration.dart';
 import 'route_setup_screen.dart';
 import 'profile_screen.dart';
-import 'vehiculos_screen.dart';
+import 'mi_auto_screen.dart';
 import 'audit_screen.dart';
 import '../data/models/route_model.dart';
 import '../data/models/trip_history.dart';
@@ -672,6 +672,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
         child: FloatingActionButton(
+          heroTag: 'fabRutaCentral',
           onPressed: () async {
             final result = await Navigator.push(
               context,
@@ -736,7 +737,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               
               const SizedBox(width: 50), // Espacio para el botón central flotante
               
-              _buildNavIcon(Icons.directions_car_outlined, 2, 'Vehículos'),
+              _buildNavIcon(Icons.directions_car_outlined, 2, 'Mi Auto'),
               _buildNavIcon(Icons.person_outline, 3, 'Perfil'),
             ],
           ),
@@ -780,7 +781,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildBodyTab() {
     if (_selectedIndex == 0) return _buildMapTab();
     if (_selectedIndex == 1) return const AuditScreen();
-    if (_selectedIndex == 2) return const VehiculosScreen();
+    if (_selectedIndex == 2) return const MiAutoScreen();
     if (_selectedIndex == 3) return const ProfileScreen();
     
     return Center(
@@ -1393,7 +1394,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               onPressed: () {
                 Navigator.pop(context);
                 setState(() {
-                              _selectedIndex = 2; // Nos lleva a la pestaña de Vehículos
+                              _selectedIndex = 2; // Nos lleva a la pestaña Mi Auto
                 });
               },
               child: const Text("REGISTRAR AHORA", style: TextStyle(color: Colors.white)),
@@ -1499,7 +1500,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     switch (index) {
       case 0: return 'Panel de Inicio';
       case 1: return 'Auditoría de Boletas (IA)';
-      case 2: return 'Gestión de Vehículos';
+      case 2: return 'Mi Auto';
       case 3: return 'Mi Perfil';
       default: return '';
     }

@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 const List<Map<String, String>> kTiposDocumentoVehiculo = [
   {'id': 'permiso_circulacion', 'label': 'Permiso de Circulación'},
   {'id': 'revision_tecnica', 'label': 'Revisión Técnica'},
@@ -43,6 +45,24 @@ class DocumentoVehiculoModel {
     if (dias < 0) return EstadoVencimiento.vencido;
     if (dias <= 30) return EstadoVencimiento.atencion;
     return EstadoVencimiento.alDia;
+  }
+
+  /// Días que faltan para el vencimiento (negativo si ya venció), o null si no
+  /// hay fecha. Misma cuenta que usa [estado].
+  int? get diasParaVencer => fechaVencimiento?.difference(DateTime.now()).inDays;
+
+  /// Texto corto para mostrar junto al documento: "Vence en 25 días" cuando
+  /// está cerca, la fecha cuando está lejos, y "Vencido hace N días".
+  String get textoVencimiento {
+    final dias = diasParaVencer;
+    if (dias == null) return 'Sin datos';
+    if (dias < 0) {
+      final atraso = -dias;
+      return 'Vencido hace $atraso ${atraso == 1 ? 'día' : 'días'}';
+    }
+    if (dias == 0) return 'Vence hoy';
+    if (dias <= 60) return 'Vence en $dias ${dias == 1 ? 'día' : 'días'}';
+    return 'Vence ${DateFormat('dd/MM/yyyy').format(fechaVencimiento!)}';
   }
 
   factory DocumentoVehiculoModel.fromJson(

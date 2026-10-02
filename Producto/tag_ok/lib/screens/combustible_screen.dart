@@ -41,6 +41,7 @@ class _CombustibleScreenState extends State<CombustibleScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fabAgregarCarga',
         onPressed: _mostrarFormularioCarga,
         backgroundColor: primaryColor,
         child: const Icon(Icons.add, color: Colors.white),

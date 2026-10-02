@@ -5,8 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/vehiculo_model.dart';
 import '../data/models/documento_vehiculo_model.dart';
 import '../data/services/vehiculo_documentos_service.dart';
-import 'documentos_vehiculo_screen.dart';
-import 'combustible_screen.dart';
+import 'ficha_vehiculo_screen.dart';
+import 'vehiculo_edicion.dart';
+import '../utils/patente_chile.dart';
 
 class VehiculosScreen extends StatefulWidget {
   const VehiculosScreen({super.key});
@@ -89,46 +90,33 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     }
   }
 
-  /// Sube la foto a Storage en la ruta "uid/vehiculoId.ext" (mismo patrón de
-  /// bucket-público-lectura + RLS-por-carpeta-de-uid que ya usa el avatar de
-  /// perfil) y devuelve la URL pública con un parámetro de versión, para que
-  /// no quede cacheada la foto anterior con el mismo nombre de archivo.
-  Future<String> _subirFotoVehiculo(String vehiculoId, XFile foto) async {
-    final user = Supabase.instance.client.auth.currentUser!;
-    final bytes = await foto.readAsBytes();
-    final rawExt = foto.name.contains('.') ? foto.name.split('.').last.toLowerCase() : 'jpg';
-    final ext = rawExt == 'jpg' || rawExt == 'jpeg' || rawExt == 'png' || rawExt == 'webp' ? rawExt : 'jpg';
-    final path = '${user.id}/$vehiculoId.$ext';
-    final storage = Supabase.instance.client.storage.from('vehiculo_fotos');
-
-    await storage.uploadBinary(
-      path,
-      bytes,
-      fileOptions: FileOptions(upsert: true, contentType: 'image/${ext == 'jpg' ? 'jpeg' : ext}'),
-    );
-
-    final publicUrl = storage.getPublicUrl(path);
-    return '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
-  }
-
   Future<bool> _agregarVehiculo({XFile? foto}) async {
-    final patente = _patenteController.text.trim().toUpperCase();
+    final patente = normalizarPatente(_patenteController.text);
     final categoria = _categoriaSeleccionada;
     final marca = _marcaController.text.trim();
     final user = Supabase.instance.client.auth.currentUser;
 
     if (patente.isEmpty || user == null) return false;
 
-    // Validación de patente (4 letras y 2 números)
-    final patenteRegex = RegExp(r'^[A-Z]{4}\d{2}$');
-    if (!patenteRegex.hasMatch(patente)) {
+    // Validación de patente (autos y motos, formatos actual y antiguo)
+    if (!esPatenteValida(patente)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Formato inválido (ej: ABCD12)'),
+            content: Text(kMensajePatenteInvalida),
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
           ),
+        );
+      }
+      return false;
+    }
+
+    final errorAnio = validarAnioVehiculo(_anioController.text.trim());
+    if (errorAnio != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorAnio), backgroundColor: Colors.redAccent, behavior: SnackBarBehavior.floating),
         );
       }
       return false;
@@ -155,14 +143,14 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
 
       if (foto != null) {
         try {
-          final fotoUrl = await _subirFotoVehiculo(inserted['id'], foto);
+          final fotoUrl = await subirFotoVehiculo(inserted['id'], foto);
           await Supabase.instance.client.from('vehiculos').update({'foto_url': fotoUrl}).eq('id', inserted['id']);
         } catch (e) {
           // El vehículo ya se creó correctamente; que falle solo la foto no
           // debería impedir el flujo -- se puede agregar después editando.
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Vehículo creado, pero no se pudo subir la foto: $e'), backgroundColor: Colors.orange),
+              const SnackBar(content: Text('Vehículo creado, pero no se pudo subir la foto. Puedes agregarla editando el vehículo.'), backgroundColor: Colors.orange),
             );
           }
         }
@@ -192,7 +180,7 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al agregar vehículo: $e'),
+            content: Text(mensajeErrorVehiculo(e)),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -201,425 +189,14 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     }
   }
 
-  Future<bool> _editarVehiculo(
-    String docId,
-    String patente,
-    String marca,
-    String categoria, {
-    String? modelo,
-    int? anio,
-    String? tipoCombustible,
-    double? kilometraje,
-    String? alias,
-  }) async {
-    try {
-      await Supabase.instance.client.from('vehiculos').update({
-        'patente': patente,
-        'categoria': categoria,
-        'marca': marca.isNotEmpty ? marca : 'No especificada',
-        'modelo': modelo,
-        'anio': anio,
-        'tipo_combustible': tipoCombustible,
-        'kilometraje': kilometraje,
-        'alias': alias,
-      }).eq('id', docId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Vehículo actualizado exitosamente'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-      return true;
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al actualizar: $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-      return false;
-    }
-  }
-
-  void _mostrarInfoVehiculo(Map<String, dynamic> data) {
-    final alias = (data['alias'] as String?)?.trim();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: navBgColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-            alias != null && alias.isNotEmpty ? alias : 'Información del Vehículo',
-            style: TextStyle(color: textMain),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (data['foto_url'] != null) ...[
-                  Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.network(
-                        data['foto_url'],
-                        height: 140,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                Text('Patente: ${data['patente']}', style: TextStyle(color: textMain, fontSize: 18)),
-                const SizedBox(height: 8),
-                Text('Tipo: ${data['categoria']}', style: TextStyle(color: textMuted, fontSize: 16)),
-                const SizedBox(height: 8),
-                Text('Marca: ${data['marca'] ?? 'No especificada'}', style: TextStyle(color: textMuted, fontSize: 16)),
-                if (data['modelo'] != null && data['modelo'].toString().isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text('Modelo: ${data['modelo']}', style: TextStyle(color: textMuted, fontSize: 16)),
-                ],
-                if (data['anio'] != null) ...[
-                  const SizedBox(height: 8),
-                  Text('Año: ${data['anio']}', style: TextStyle(color: textMuted, fontSize: 16)),
-                ],
-                if (data['tipo_combustible'] != null) ...[
-                  const SizedBox(height: 8),
-                  Text('Combustible: ${data['tipo_combustible']}', style: TextStyle(color: textMuted, fontSize: 16)),
-                ],
-                if (data['kilometraje'] != null) ...[
-                  const SizedBox(height: 8),
-                  Text('Kilometraje: ${(data['kilometraje'] as num).toStringAsFixed(0)} km', style: TextStyle(color: textMuted, fontSize: 16)),
-                ],
-                const SizedBox(height: 8),
-                Text(
-                  'Ingresado: ${data['fecha_ingreso'] != null ? _formatearFecha(data['fecha_ingreso']) : 'No registrada'}',
-                  style: TextStyle(color: textMuted, fontSize: 14),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: primaryColor,
-                      side: BorderSide(color: primaryColor),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DocumentosVehiculoScreen(
-                            vehiculoId: data['id'],
-                            patente: data['patente'] ?? '',
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.description_outlined),
-                    label: const Text('Ver Documentos y Vencimientos'),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: accentColor,
-                      side: BorderSide(color: accentColor),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CombustibleScreen(
-                            vehiculoId: data['id'],
-                            patente: data['patente'] ?? '',
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.local_gas_station_outlined),
-                    label: const Text('Ver Combustible'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _mostrarFormularioEditarVehiculo(data);
-              },
-              child: const Text('Editar', style: TextStyle(color: Colors.blueAccent)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cerrar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _mostrarFormularioEditarVehiculo(Map<String, dynamic> data) {
-    final TextEditingController patenteCtrl = TextEditingController(text: data['patente']);
-    final TextEditingController marcaCtrl = TextEditingController(text: data['marca'] == 'No especificada' ? '' : data['marca']);
-    final TextEditingController modeloCtrl = TextEditingController(text: data['modelo']?.toString() ?? '');
-    final TextEditingController anioCtrl = TextEditingController(text: data['anio']?.toString() ?? '');
-    final TextEditingController kilometrajeCtrl = TextEditingController(text: data['kilometraje']?.toString() ?? '');
-    final TextEditingController aliasCtrl = TextEditingController(text: data['alias']?.toString() ?? '');
-    String categoriaSel = data['categoria'] ?? 'AUTO';
-    String? tipoCombustibleSel = kTiposCombustible.contains(data['tipo_combustible']) ? data['tipo_combustible'] : null;
-    String? fotoUrlActual = data['foto_url'];
-    bool subiendoFoto = false;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            Future<void> cambiarFoto() async {
-              final picker = ImagePicker();
-              final picked = await picker.pickImage(
-                source: ImageSource.gallery,
-                maxWidth: 800,
-                maxHeight: 800,
-                imageQuality: 85,
-              );
-              if (picked == null) return;
-              setModalState(() => subiendoFoto = true);
-              try {
-                final fotoUrl = await _subirFotoVehiculo(data['id'], picked);
-                await Supabase.instance.client.from('vehiculos').update({'foto_url': fotoUrl}).eq('id', data['id']);
-                setModalState(() {
-                  fotoUrlActual = fotoUrl;
-                  subiendoFoto = false;
-                });
-              } catch (e) {
-                setModalState(() => subiendoFoto = false);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('No se pudo actualizar la foto: $e'), backgroundColor: Colors.redAccent),
-                  );
-                }
-              }
-            }
-
-            return AlertDialog(
-              backgroundColor: navBgColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Text('Editar Vehículo', style: TextStyle(color: textMain, fontWeight: FontWeight.bold)),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: GestureDetector(
-                        onTap: subiendoFoto ? null : cambiarFoto,
-                        child: CircleAvatar(
-                          radius: 40,
-                          backgroundColor: bgColor,
-                          backgroundImage: fotoUrlActual != null ? NetworkImage(fotoUrlActual!) : null,
-                          child: subiendoFoto
-                              ? const CircularProgressIndicator()
-                              : fotoUrlActual == null
-                                  ? Icon(Icons.add_a_photo_outlined, color: textMuted, size: 28)
-                                  : null,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Center(
-                      child: Text('Toca para cambiar la foto', style: TextStyle(color: textMuted, fontSize: 12)),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: patenteCtrl,
-                      style: TextStyle(color: textMain),
-                      textCapitalization: TextCapitalization.characters,
-                      inputFormatters: [
-                        TextInputFormatter.withFunction((oldValue, newValue) {
-                          return TextEditingValue(
-                            text: newValue.text.toUpperCase(),
-                            selection: newValue.selection,
-                          );
-                        }),
-                      ],
-                      decoration: InputDecoration(
-                        labelText: 'Patente (ej: ABCD55)',
-                        labelStyle: TextStyle(color: textMuted),
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: textMuted.withValues(alpha: 0.5))),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: primaryColor)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: marcaCtrl,
-                      style: TextStyle(color: textMain),
-                      textCapitalization: TextCapitalization.words,
-                      decoration: InputDecoration(
-                        labelText: 'Marca (ej: Toyota, Kia)',
-                        labelStyle: TextStyle(color: textMuted),
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: textMuted.withValues(alpha: 0.5))),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: primaryColor)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: categoriaSel,
-                      dropdownColor: navBgColor,
-                      style: TextStyle(color: textMain),
-                      decoration: InputDecoration(
-                        labelText: 'Tipo de Vehículo',
-                        labelStyle: TextStyle(color: textMuted),
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: textMuted.withValues(alpha: 0.5))),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: primaryColor)),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'AUTO', child: Text('AUTO')),
-                        DropdownMenuItem(value: 'CAMIONETA', child: Text('CAMIONETA')),
-                        DropdownMenuItem(value: 'MOTO', child: Text('MOTO')),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setModalState(() {
-                            categoriaSel = value;
-                          });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: modeloCtrl,
-                      style: TextStyle(color: textMain),
-                      decoration: InputDecoration(
-                        labelText: 'Modelo (ej: Corolla)',
-                        labelStyle: TextStyle(color: textMuted),
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: textMuted.withValues(alpha: 0.5))),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: primaryColor)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: anioCtrl,
-                      style: TextStyle(color: textMain),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: InputDecoration(
-                        labelText: 'Año',
-                        labelStyle: TextStyle(color: textMuted),
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: textMuted.withValues(alpha: 0.5))),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: primaryColor)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: tipoCombustibleSel,
-                      dropdownColor: navBgColor,
-                      style: TextStyle(color: textMain),
-                      hint: Text('Selecciona', style: TextStyle(color: textMuted)),
-                      decoration: InputDecoration(
-                        labelText: 'Tipo de Combustible',
-                        labelStyle: TextStyle(color: textMuted),
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: textMuted.withValues(alpha: 0.5))),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: primaryColor)),
-                      ),
-                      items: kTiposCombustible
-                          .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                          .toList(),
-                      onChanged: (value) {
-                        setModalState(() {
-                          tipoCombustibleSel = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: kilometrajeCtrl,
-                      style: TextStyle(color: textMain),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: InputDecoration(
-                        labelText: 'Kilometraje actual',
-                        labelStyle: TextStyle(color: textMuted),
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: textMuted.withValues(alpha: 0.5))),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: primaryColor)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: aliasCtrl,
-                      style: TextStyle(color: textMain),
-                      decoration: InputDecoration(
-                        labelText: 'Alias (ej: Auto de la Sara)',
-                        labelStyle: TextStyle(color: textMuted),
-                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: textMuted.withValues(alpha: 0.5))),
-                        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: primaryColor)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Cancelar', style: TextStyle(color: textMuted)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () async {
-                    final p = patenteCtrl.text.trim().toUpperCase();
-                    final m = marcaCtrl.text.trim();
-                    final patenteRegex = RegExp(r'^[A-Z]{4}\d{2}$');
-                    if (!patenteRegex.hasMatch(p)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Formato inválido (ej: ABCD12)'),
-                          backgroundColor: Colors.redAccent,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                      return;
-                    }
-                    bool success = await _editarVehiculo(
-                      data['id'],
-                      p,
-                      m,
-                      categoriaSel,
-                      modelo: modeloCtrl.text.trim().isEmpty ? null : modeloCtrl.text.trim(),
-                      anio: int.tryParse(anioCtrl.text.trim()),
-                      tipoCombustible: tipoCombustibleSel,
-                      kilometraje: double.tryParse(kilometrajeCtrl.text.trim()),
-                      alias: aliasCtrl.text.trim().isEmpty ? null : aliasCtrl.text.trim(),
-                    );
-                    if (success && context.mounted) {
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: const Text('Guardar', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            );
-          }
-        );
-      },
+  void _abrirFichaVehiculo(Map<String, dynamic> data) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FichaVehiculoScreen(
+          vehiculoId: data['id'],
+        ),
+      ),
     );
   }
 
@@ -724,7 +301,7 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                         }),
                       ],
                       decoration: InputDecoration(
-                        labelText: 'Patente (ej: ABCD55)',
+                        labelText: 'Patente (ej: ABCD12, AB1234, ABC12)',
                         labelStyle: TextStyle(color: textMuted),
                         enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: textMuted.withValues(alpha: 0.5))),
                         focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: primaryColor)),
@@ -880,6 +457,7 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fabAgregarVehiculo',
         onPressed: _mostrarFormularioAgregarVehiculo,
         backgroundColor: primaryColor,
         child: const Icon(Icons.add, color: Colors.white),
@@ -915,11 +493,6 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
         ),
       ),
     );
-  }
-
-  String _formatearFecha(String isoDate) {
-    final date = DateTime.parse(isoDate);
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
   Widget _buildEmptyState() {
@@ -1020,12 +593,12 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildEstadoDocumentosDot(data['id']),
+                      _buildEstadoDocumentos(data['id']),
                       const SizedBox(width: 8),
                       const Icon(Icons.chevron_right, color: Colors.grey),
                     ],
                   ),
-                  onTap: () => _mostrarInfoVehiculo(data),
+                  onTap: () => _abrirFichaVehiculo(data),
                 ),
               );
             },
@@ -1035,31 +608,23 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     );
   }
 
-  Widget _buildEstadoDocumentosDot(String vehiculoId) {
+  Widget _buildEstadoDocumentos(String vehiculoId) {
     return StreamBuilder<List<DocumentoVehiculoModel>>(
       stream: _documentosService.streamDocumentos(vehiculoId),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox(width: 10, height: 10);
+        if (!snapshot.hasData) return const SizedBox.shrink();
         final estado = peorEstado(snapshot.data!.map((d) => d.estado).toList());
-        Color color;
-        switch (estado) {
-          case EstadoVencimiento.alDia:
-            color = const Color(0xFF10B981);
-            break;
-          case EstadoVencimiento.atencion:
-            color = const Color(0xFFF59E0B);
-            break;
-          case EstadoVencimiento.vencido:
-            color = const Color(0xFFEF4444);
-            break;
-          case EstadoVencimiento.sinDatos:
-            color = Colors.grey;
-            break;
-        }
+        final color = colorEstadoVencimiento(estado);
         return Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            labelEstadoGeneralVehiculo(estado),
+            style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+          ),
         );
       },
     );

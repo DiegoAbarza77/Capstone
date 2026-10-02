@@ -1,0 +1,7 @@
+# Copia este archivo como key.properties (sin .example) y completa los valores.
+# key.properties NO se sube a git. Guarda también una copia del archivo .jks
+# fuera del PC (pendrive o nube privada): si lo pierdes no podrás actualizar la app.
+storePassword=LA_CONTRASEÑA_DEL_KEYSTORE
+keyPassword=LA_CONTRASEÑA_DE_LA_LLAVE
+keyAlias=tagok
+storeFile=tagok-release.jks

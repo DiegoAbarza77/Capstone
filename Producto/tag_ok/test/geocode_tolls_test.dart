@@ -4,6 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:http/http.dart' as http;
 
+// ATENCIÓN: este archivo no es una prueba, es un GENERADOR que reescribe
+// lib/data/mock/tolls_database.dart a partir de los PDF de "pdf porticos/".
+// Si corre dentro de `flutter test` sin querer, pisa la base de 106 pórticos
+// con una versión casi vacía. Por eso solo se ejecuta si se pide a propósito:
+//   REGENERAR_PORTICOS=1 flutter test test/geocode_tolls_test.dart
+final _regenerar = Platform.environment['REGENERAR_PORTICOS'] == '1';
+
 void main() {
   test('Geocode PDF Tolls', () async {
     // 1. Read Mapbox Token from .env
@@ -94,5 +101,5 @@ void main() {
 
     File('lib/data/mock/tolls_database.dart').writeAsStringSync(outputLines.join('\n'));
     print('Total tolls geocoded: $tollCount');
-  });
+  }, skip: _regenerar ? false : 'Generador: solo corre con REGENERAR_PORTICOS=1');
 }

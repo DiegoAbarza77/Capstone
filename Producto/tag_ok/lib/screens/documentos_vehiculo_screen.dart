@@ -12,10 +12,18 @@ class DocumentosVehiculoScreen extends StatefulWidget {
   final String vehiculoId;
   final String patente;
 
+  /// Si es true, al abrir lanza directamente el flujo "Agregar documento con IA".
+  final bool iniciarConIA;
+
+  /// Si viene (ej. 'soap'), al abrir muestra el formulario de ese documento.
+  final String? tipoInicial;
+
   const DocumentosVehiculoScreen({
     super.key,
     required this.vehiculoId,
     required this.patente,
+    this.iniciarConIA = false,
+    this.tipoInicial,
   });
 
   @override
@@ -45,6 +53,27 @@ class _DocumentosVehiculoScreenState extends State<DocumentosVehiculoScreen> {
     // la app) para no interrumpir el primer login con un diálogo del SO.
     _notifService.solicitarPermiso();
     _cargarPreferenciaNotificaciones();
+
+    // Acciones iniciales pedidas por quien abre esta pantalla (la ficha del
+    // vehículo): se ejecutan cuando ya se dibujó el primer frame.
+    if (widget.iniciarConIA) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _agregarDocumentoConIA();
+      });
+    } else if (widget.tipoInicial != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _abrirFormularioInicial());
+    }
+  }
+
+  Future<void> _abrirFormularioInicial() async {
+    try {
+      final documentos = await _service.streamDocumentos(widget.vehiculoId).first;
+      if (!mounted) return;
+      final doc = documentos.where((d) => d.tipo == widget.tipoInicial).firstOrNull;
+      if (doc != null) _mostrarFormularioDocumento(doc);
+    } catch (e) {
+      debugPrint('TAG_OK_DOCUMENTOS: no se pudo abrir el formulario inicial: $e');
+    }
   }
 
   Future<void> _cargarPreferenciaNotificaciones() async {

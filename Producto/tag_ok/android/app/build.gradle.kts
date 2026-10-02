@@ -1,8 +1,23 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Llave de firma propia (ver GUIA_APK.md). key.properties y el .jks nunca se
+// suben a git. Si no existe, el build de release cae a la llave de depuración
+// para que compilar siga funcionando, pero esa APK no sirve para repartir:
+// cada PC genera una llave de depuración distinta y Android rechazaría la
+// actualización.
+val keyPropertiesFile = rootProject.file("key.properties")
+val keyProperties = Properties()
+val tieneLlaveDeFirma = keyPropertiesFile.exists()
+if (tieneLlaveDeFirma) {
+    keyProperties.load(FileInputStream(keyPropertiesFile))
 }
 
 android {
@@ -31,11 +46,25 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (tieneLlaveDeFirma) {
+            create("release") {
+                keyAlias = keyProperties.getProperty("keyAlias")
+                keyPassword = keyProperties.getProperty("keyPassword")
+                storeFile = rootProject.file(keyProperties.getProperty("storeFile"))
+                storePassword = keyProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (tieneLlaveDeFirma) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn("AVISO: no hay android/key.properties; se firma con la llave de depuración. No repartas esta APK.")
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
@@ -193,13 +194,30 @@ class ProfileScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
 
-              // Nombre y Correo
-              Text(
-                nombre,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: textMain,
+              // Nombre y Correo (tocar el nombre para editarlo)
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => _editarNombre(context, user.id, nombre == 'Usuario Tag OK' ? '' : nombre),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          nombre,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: textMain,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.edit_outlined, size: 16, color: textMuted),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -215,6 +233,7 @@ class ProfileScreen extends ConsumerWidget {
                       value: limitePresupuesto,
                       icon: Icons.account_balance_wallet_outlined,
                       color: accentColor,
+                      onTap: () => _editarLimite(context, user.id, limiteNum),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -237,6 +256,11 @@ class ProfileScreen extends ConsumerWidget {
                       value: telefono,
                       icon: Icons.phone_outlined,
                       color: primaryColor,
+                      onTap: () => _editarTelefono(
+                        context,
+                        user.id,
+                        telefono == 'Sin registrar' ? '' : telefono,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -319,13 +343,16 @@ class ProfileScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: navBgColor,
+      // Sin esto la hoja tiene un alto máximo fijo y en pantallas bajas el
+      // contenido se desborda; con scroll siempre cabe.
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return Padding(
+            return SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -682,6 +709,165 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   // --- FUNCIÓN PARA MOSTRAR LA VENTANA EMERGENTE DE EDICIÓN ---
+  // --- EDICIÓN DE UN SOLO CAMPO (se abre al tocar el dato) ---
+  void _editarNombre(BuildContext context, String uid, String actual) {
+    _editarCampo(
+      context,
+      uid: uid,
+      titulo: 'Editar nombre',
+      etiqueta: 'Nombre a mostrar',
+      icono: Icons.person_outline,
+      valorInicial: actual,
+      columna: 'nombre_mostrar',
+      validar: (v) => v.isEmpty ? 'Ingresa tu nombre.' : null,
+      convertir: (v) => v,
+    );
+  }
+
+  void _editarTelefono(BuildContext context, String uid, String actual) {
+    _editarCampo(
+      context,
+      uid: uid,
+      titulo: 'Editar teléfono',
+      etiqueta: 'Teléfono',
+      icono: Icons.phone_outlined,
+      valorInicial: actual,
+      columna: 'telefono',
+      teclado: TextInputType.phone,
+      validar: (v) {
+        // Vacío se permite: equivale a quitar el teléfono.
+        if (v.isNotEmpty && v.replaceAll(RegExp(r'[\s\-]'), '').length < 8) {
+          return 'El teléfono debe tener al menos 8 dígitos.';
+        }
+        return null;
+      },
+      convertir: (v) => v,
+    );
+  }
+
+  void _editarLimite(BuildContext context, String uid, int actual) {
+    _editarCampo(
+      context,
+      uid: uid,
+      titulo: 'Editar límite mensual',
+      etiqueta: 'Límite Mensual (\$)',
+      icono: Icons.attach_money,
+      valorInicial: actual.toString(),
+      columna: 'limite_presupuesto_mensual',
+      teclado: TextInputType.number,
+      formatters: [FilteringTextInputFormatter.digitsOnly],
+      validar: (v) {
+        final n = int.tryParse(v);
+        if (n == null || n <= 0) return 'Ingresa un monto mayor a 0.';
+        return null;
+      },
+      convertir: (v) => int.parse(v),
+    );
+  }
+
+  void _editarCampo(
+    BuildContext context, {
+    required String uid,
+    required String titulo,
+    required String etiqueta,
+    required IconData icono,
+    required String valorInicial,
+    required String columna,
+    required String? Function(String) validar,
+    required Object Function(String) convertir,
+    TextInputType? teclado,
+    List<TextInputFormatter>? formatters,
+  }) {
+    final controller = TextEditingController(text: valorInicial);
+    String? error;
+    bool guardando = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setState) {
+            Future<void> guardar() async {
+              final valor = controller.text.trim();
+              final mensaje = validar(valor);
+              if (mensaje != null) {
+                setState(() => error = mensaje);
+                return;
+              }
+              setState(() {
+                error = null;
+                guardando = true;
+              });
+              try {
+                await Supabase.instance.client
+                    .from('usuarios')
+                    .update({columna: convertir(valor)}).eq('id', uid);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              } catch (e) {
+                debugPrint('TAG_OK_PROFILE: error al guardar $columna: $e');
+                if (dialogContext.mounted) {
+                  setState(() {
+                    guardando = false;
+                    error = 'No se pudo guardar. Revisa tu conexión e intenta de nuevo.';
+                  });
+                }
+              }
+            }
+
+            return AlertDialog(
+              backgroundColor: navBgColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text(
+                titulo,
+                style: TextStyle(color: textMain, fontWeight: FontWeight.bold),
+              ),
+              content: TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType: teclado,
+                inputFormatters: formatters,
+                style: TextStyle(color: textMain),
+                onSubmitted: (_) => guardar(),
+                decoration: InputDecoration(
+                  labelText: etiqueta,
+                  labelStyle: TextStyle(color: textMuted),
+                  errorText: error,
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: textMuted.withValues(alpha: 0.5)),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: primaryColor),
+                  ),
+                  prefixIcon: Icon(icono, color: textMuted),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: guardando ? null : () => Navigator.pop(dialogContext),
+                  child: Text('Cancelar', style: TextStyle(color: textMuted)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: guardando ? null : guardar,
+                  child: guardando
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Guardar', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _mostrarDialogoEdicion(
     BuildContext context,
     String uid,
@@ -813,41 +999,51 @@ class ProfileScreen extends ConsumerWidget {
     required String value,
     required IconData icon,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: navBgColor,
+    return Material(
+      color: navBgColor,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(color: textMuted, fontSize: 12),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              Row(
+                children: [
+                  Icon(icon, size: 18, color: color),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(color: textMuted, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // El lápiz indica que la tarjeta se puede tocar para editar.
+                  if (onTap != null) Icon(Icons.edit_outlined, size: 14, color: textMuted),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                value,
+                style: TextStyle(
+                  color: textMain,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              color: textMain,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
