@@ -1,34 +1,20 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'gemini_proxy_service.dart';
 
 /// Extrae datos de documentos del vehículo (Permiso de Circulación, Revisión
 /// Técnica, SOAP, Seguro) a partir de una foto o PDF, usando la misma Edge
 /// Function "gemini-proxy" que ya usa audit_screen.dart para las boletas de
 /// peaje -- así GEMINI_API_KEY nunca viaja al cliente.
 class DocumentoIaService {
+  final GeminiProxyService _proxy = GeminiProxyService();
+
   Future<String> _callGeminiProxy(
     String prompt, {
     required Uint8List fileBytes,
     required String mimeType,
-  }) async {
-    final response = await Supabase.instance.client.functions.invoke(
-      'gemini-proxy',
-      body: {
-        'prompt': prompt,
-        'imageBase64': base64Encode(fileBytes),
-        'imageMimeType': mimeType,
-      },
-    );
-    if (response.data is! Map) {
-      throw Exception('Respuesta inesperada del servicio de IA.');
-    }
-    final data = response.data as Map;
-    final text = (data['text'] as String?)?.trim() ?? '';
-    if (text.isEmpty) {
-      throw Exception('El servicio de IA no devolvió contenido.');
-    }
-    return text;
+  }) {
+    return _proxy.pedirTexto(prompt, fileBytes: fileBytes, mimeType: mimeType);
   }
 
   /// [mimeType] acepta imágenes (image/jpeg, image/png) o "application/pdf" --

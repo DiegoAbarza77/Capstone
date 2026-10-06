@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/documento_vehiculo_model.dart';
+import '../data/models/estacionamiento_model.dart';
+import '../data/services/estacionamiento_service.dart';
+import '../utils/estacionamiento_calculos.dart';
+import '../data/models/mantencion_model.dart';
+import '../data/services/mantencion_service.dart';
 import '../data/services/vehiculo_documentos_service.dart';
+import '../utils/mantencion_calculos.dart';
 import 'combustible_screen.dart';
 import 'documentos_vehiculo_screen.dart';
+import 'estacionamientos_screen.dart';
 import 'ficha_vehiculo_screen.dart';
+import 'mantencion_ui.dart';
+import 'mantenciones_screen.dart';
 import 'vehiculos_screen.dart';
 
 const Color _bgColor = Color(0xFF0F172A);
@@ -13,6 +22,7 @@ const Color _navBgColor = Color(0xFF1E293B);
 const Color _textMuted = Color(0xFF94A3B8);
 const Color _textMain = Color(0xFFF8FAFC);
 const Color _accentColor = Color(0xFF10B981);
+const Color _colorCronometro = Color(0xFF38BDF8);
 
 /// Pestaña "Mi Auto": el punto de partida de todo lo relacionado con el
 /// vehículo. Muestra el vehículo elegido con su estado y, debajo, los accesos
@@ -228,14 +238,19 @@ class _PanelVehiculo extends StatefulWidget {
 
 class _PanelVehiculoState extends State<_PanelVehiculo> {
   late final Stream<List<DocumentoVehiculoModel>> _documentosStream;
+  late final Stream<List<MantencionProgramadaModel>> _programadasStream;
+  late final Stream<List<EstacionamientoModel>> _estacionamientosStream;
 
   String get _vehiculoId => widget.vehiculo['id'] as String;
   String get _patente => (widget.vehiculo['patente'] ?? '').toString();
+  double? get _kmActual => (widget.vehiculo['kilometraje'] as num?)?.toDouble();
 
   @override
   void initState() {
     super.initState();
     _documentosStream = VehiculoDocumentosService().streamDocumentos(_vehiculoId);
+    _programadasStream = MantencionService().streamProgramadas(_vehiculoId);
+    _estacionamientosStream = EstacionamientoService().streamPorVehiculo(_vehiculoId);
   }
 
   void _ir(Widget pantalla) {
@@ -254,30 +269,76 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
       stream: _documentosStream,
       builder: (context, snapshot) {
         final documentos = snapshot.data ?? [];
-        final estadoGeneral = documentos.isEmpty
-            ? EstadoVencimiento.sinDatos
-            : peorEstado(documentos.map((d) => d.estado).toList());
-        final conAviso = documentos
-            .where((d) => d.estado == EstadoVencimiento.vencido || d.estado == EstadoVencimiento.atencion)
-            .toList();
+        return StreamBuilder<List<MantencionProgramadaModel>>(
+          stream: _programadasStream,
+          builder: (context, progSnap) {
+            return StreamBuilder<List<EstacionamientoModel>>(
+              stream: _estacionamientosStream,
+              builder: (context, estSnap) {
+                final estadoGeneral = documentos.isEmpty
+                    ? EstadoVencimiento.sinDatos
+                    : peorEstado(documentos.map((d) => d.estado).toList());
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildResumen(estadoGeneral),
-            if (conAviso.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _buildAlertas(conAviso),
-            ],
-            const SizedBox(height: 24),
-            const Text('Módulos', style: TextStyle(color: _textMuted, fontSize: 13)),
-            const SizedBox(height: 10),
-            _buildModulos(documentos),
-          ],
+                // Mantenciones programadas pendientes, evaluadas contra hoy y el odómetro.
+                final programadas = [
+                  for (final p in (progSnap.data ?? const <MantencionProgramadaModel>[]).where((p) => !p.completada))
+                    (p, evaluarProgramada(p, kmActual: _kmActual)),
+                ];
+                final enCurso = estacionamientoEnCurso(estSnap.data ?? const <EstacionamientoModel>[]);
+
+                final avisos = <_Aviso>[
+                  for (final d in documentos)
+                    if (d.estado == EstadoVencimiento.vencido || d.estado == EstadoVencimiento.atencion)
+                      _Aviso(
+                        texto: '${d.label} · ${d.textoVencimiento}',
+                        color: colorEstadoVencimiento(d.estado),
+                        vencido: d.estado == EstadoVencimiento.vencido,
+                        abrir: () => _ir(DocumentosVehiculoScreen(vehiculoId: _vehiculoId, patente: _patente)),
+                      ),
+                  for (final (p, e) in programadas)
+                    if (e.estado != EstadoProgramada.alDia)
+                      _Aviso(
+                        texto: 'Mantención: ${p.titulo} · ${descripcionCriterios(p, e).join(' · ')}',
+                        color: colorEstadoProgramada(e.estado),
+                        vencido: e.estado == EstadoProgramada.vencida,
+                        abrir: _abrirMantenciones,
+                      ),
+                  if (enCurso != null)
+                    _Aviso(
+                      texto: 'Estacionamiento en curso'
+                          '${enCurso.horaEntrada != null ? ' · desde las ${formatoHora(enCurso.horaEntrada!)}' : ''}',
+                      color: _colorCronometro,
+                      vencido: false,
+                      informativo: true,
+                      abrir: _abrirEstacionamientos,
+                    ),
+                ];
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildResumen(estadoGeneral),
+                    if (avisos.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _buildAlertas(avisos),
+                    ],
+                    const SizedBox(height: 24),
+                    const Text('Módulos', style: TextStyle(color: _textMuted, fontSize: 13)),
+                    const SizedBox(height: 10),
+                    _buildModulos(documentos, [for (final (_, e) in programadas) e], enCurso != null),
+                  ],
+                );
+              },
+            );
+          },
         );
       },
     );
   }
+
+  void _abrirMantenciones() => _ir(MantencionesScreen(vehiculoId: _vehiculoId, patente: _patente));
+
+  void _abrirEstacionamientos() => _ir(EstacionamientosScreen(vehiculoId: _vehiculoId, patente: _patente));
 
   Widget _buildResumen(EstadoVencimiento estadoGeneral) {
     final alias = (widget.vehiculo['alias'] as String?)?.trim();
@@ -351,43 +412,52 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
     );
   }
 
-  Widget _buildAlertas(List<DocumentoVehiculoModel> conAviso) {
-    final hayVencido = conAviso.any((d) => d.estado == EstadoVencimiento.vencido);
-    final color = colorEstadoVencimiento(hayVencido ? EstadoVencimiento.vencido : EstadoVencimiento.atencion);
+  Widget _buildAlertas(List<_Aviso> avisos) {
+    final hayVencido = avisos.any((a) => a.vencido);
+    final hayAtencion = avisos.any((a) => !a.informativo && !a.vencido);
+    // Rojo si hay algo vencido, ámbar si hay algo por vencer y azul si solo hay
+    // avisos informativos (por ejemplo, un estacionamiento en curso).
+    final colorBorde = hayVencido
+        ? colorEstadoVencimiento(EstadoVencimiento.vencido)
+        : (hayAtencion ? colorEstadoVencimiento(EstadoVencimiento.atencion) : _colorCronometro);
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () => _ir(DocumentosVehiculoScreen(vehiculoId: _vehiculoId, patente: _patente)),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(hayVencido ? Icons.error_outline : Icons.warning_amber_rounded, color: color, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final doc in conAviso)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      decoration: BoxDecoration(
+        color: colorBorde.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colorBorde.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        children: [
+          for (final aviso in avisos)
+            InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: aviso.abrir,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      aviso.informativo
+                          ? Icons.timer_outlined
+                          : (aviso.vencido ? Icons.error_outline : Icons.warning_amber_rounded),
+                      color: aviso.color,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
                       child: Text(
-                        '${doc.label} · ${doc.textoVencimiento}',
-                        style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600),
+                        aviso.texto,
+                        style: TextStyle(color: aviso.color, fontSize: 13, fontWeight: FontWeight.w600),
                       ),
                     ),
-                ],
+                    const Icon(Icons.chevron_right, color: _textMuted, size: 18),
+                  ],
+                ),
               ),
             ),
-            const Icon(Icons.chevron_right, color: _textMuted, size: 20),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -408,8 +478,26 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
     return ('Todo al día', _accentColor);
   }
 
-  Widget _buildModulos(List<DocumentoVehiculoModel> documentos) {
+  /// Resumen corto de las mantenciones programadas para la tarjeta del módulo.
+  (String, Color) _resumenMantenciones(List<EvaluacionProgramada> evaluaciones) {
+    final vencidas = evaluaciones.where((e) => e.estado == EstadoProgramada.vencida).length;
+    final proximas = evaluaciones.where((e) => e.estado == EstadoProgramada.proxima).length;
+    if (vencidas > 0) {
+      return ('$vencidas ${vencidas == 1 ? 'vencida' : 'vencidas'}', colorEstadoProgramada(EstadoProgramada.vencida));
+    }
+    if (proximas > 0) {
+      return ('$proximas ${proximas == 1 ? 'próxima' : 'próximas'}', colorEstadoProgramada(EstadoProgramada.proxima));
+    }
+    return ('Historial y recordatorios', _textMuted);
+  }
+
+  Widget _buildModulos(
+    List<DocumentoVehiculoModel> documentos,
+    List<EvaluacionProgramada> mantenciones,
+    bool estacionamientoEnCurso,
+  ) {
     final (textoDocs, colorDocs) = _resumenDocumentos(documentos);
+    final (textoMant, colorMant) = _resumenMantenciones(mantenciones);
 
     final tiles = [
       _ModuloTile(
@@ -430,18 +518,18 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
       _ModuloTile(
         icono: Icons.build_outlined,
         titulo: 'Mantenciones',
-        subtitulo: 'Próximamente',
+        subtitulo: textoMant,
+        colorSubtitulo: colorMant,
         color: const Color(0xFFF59E0B),
-        proximamente: true,
-        onTap: () => _proximamente('Mantenciones'),
+        onTap: _abrirMantenciones,
       ),
       _ModuloTile(
         icono: Icons.local_parking_outlined,
         titulo: 'Estacionamientos',
-        subtitulo: 'Próximamente',
-        color: const Color(0xFF38BDF8),
-        proximamente: true,
-        onTap: () => _proximamente('Estacionamientos'),
+        subtitulo: estacionamientoEnCurso ? 'En curso' : 'Cronómetro e historial',
+        colorSubtitulo: estacionamientoEnCurso ? _colorCronometro : null,
+        color: _colorCronometro,
+        onTap: _abrirEstacionamientos,
       ),
       _ModuloTile(
         icono: Icons.card_giftcard_outlined,
@@ -470,6 +558,25 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
       children: tiles,
     );
   }
+}
+
+/// Una línea del recuadro de alertas: qué pasa, de qué color y a dónde lleva.
+class _Aviso {
+  final String texto;
+  final Color color;
+  final bool vencido;
+
+  /// true para avisos que no son un problema (por ejemplo, un estacionamiento en curso).
+  final bool informativo;
+  final VoidCallback abrir;
+
+  const _Aviso({
+    required this.texto,
+    required this.color,
+    required this.vencido,
+    required this.abrir,
+    this.informativo = false,
+  });
 }
 
 class _ModuloTile extends StatelessWidget {

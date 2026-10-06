@@ -6,6 +6,8 @@ import '../data/services/vehiculo_documentos_service.dart';
 import '../data/services/vehiculo_service.dart';
 import 'combustible_screen.dart';
 import 'documentos_vehiculo_screen.dart';
+import 'estacionamientos_screen.dart';
+import 'mantenciones_screen.dart';
 import 'vehiculo_edicion.dart';
 
 const Color _bgColor = Color(0xFF0F172A);
@@ -427,44 +429,42 @@ class _FichaVehiculoScreenState extends State<FichaVehiculoScreen> {
   }
 
   Widget _buildAccesos(BuildContext context, String patente) {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _accentColor,
-              side: const BorderSide(color: _accentColor),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CombustibleScreen(vehiculoId: widget.vehiculoId, patente: patente),
-              ),
-            ),
-            icon: const Icon(Icons.local_gas_station_outlined),
-            label: const Text('Combustible'),
+    Widget acceso(String texto, IconData icono, Color color, Widget Function() pantalla) {
+      return Expanded(
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: color,
+            side: BorderSide(color: color),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => pantalla())),
+          icon: Icon(icono),
+          label: Text(texto),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _primaryColor,
-              side: const BorderSide(color: _primaryColor),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DocumentosVehiculoScreen(vehiculoId: widget.vehiculoId, patente: patente),
-              ),
-            ),
-            icon: const Icon(Icons.description_outlined),
-            label: const Text('Documentos'),
-          ),
+      );
+    }
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            acceso('Combustible', Icons.local_gas_station_outlined, _accentColor,
+                () => CombustibleScreen(vehiculoId: widget.vehiculoId, patente: patente)),
+            const SizedBox(width: 10),
+            acceso('Documentos', Icons.description_outlined, _primaryColor,
+                () => DocumentosVehiculoScreen(vehiculoId: widget.vehiculoId, patente: patente)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            acceso('Mantenciones', Icons.build_outlined, const Color(0xFFF59E0B),
+                () => MantencionesScreen(vehiculoId: widget.vehiculoId, patente: patente)),
+            const SizedBox(width: 10),
+            acceso('Estacionamientos', Icons.local_parking_outlined, const Color(0xFF38BDF8),
+                () => EstacionamientosScreen(vehiculoId: widget.vehiculoId, patente: patente)),
+          ],
         ),
       ],
     );

@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../models/mantencion_model.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -136,6 +137,75 @@ class NotificacionesVencimientoService {
         title: '$etiquetaDocumento vence hoy',
         body: '$etiquetaDocumento de $patente vence hoy. Renuévalo cuanto antes.',
         scheduledDate: avisoMismoDia,
+        notificationDetails: details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    }
+  }
+
+
+  // ── Recordatorios de próxima mantención ─────────────────────────────
+
+  Future<void> cancelarParaMantencion(String programadaId) async {
+    await init();
+    final base = _idBase('mantencion', programadaId);
+    await _plugin.cancel(id: base);
+    await _plugin.cancel(id: base + 1);
+  }
+
+  /// Programa los avisos de una mantención programada por fecha: [avisoDiasAntes]
+  /// días antes y el mismo día, a las 9:00, reemplazando los anteriores. Si no
+  /// tiene fecha, ya está completada o esas fechas ya pasaron, no programa nada.
+  ///
+  /// Los criterios por kilometraje no pueden avisarse por reloj (no se sabe cuándo
+  /// se alcanzará el kilometraje): esos se muestran dentro de la app.
+  Future<void> programarParaMantencion({
+    required MantencionProgramadaModel programada,
+    required String patente,
+  }) async {
+    await init();
+    await cancelarParaMantencion(programada.id);
+
+    final fecha = programada.fechaProgramada;
+    if (programada.completada || fecha == null) return;
+
+    final base = _idBase('mantencion', programada.id);
+    final ahora = tz.TZDateTime.now(tz.local);
+    final fechaFmt =
+        '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
+
+    final dia = tz.TZDateTime(tz.local, fecha.year, fecha.month, fecha.day, 9);
+    final aviso = dia.subtract(Duration(days: programada.avisoDiasAntes));
+
+    const details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'mantenciones_programadas',
+        'Próximas mantenciones',
+        channelDescription: 'Recordatorios de las mantenciones que programaste para tu vehículo.',
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+      iOS: DarwinNotificationDetails(),
+    );
+
+    // Con 0 días de anticipación el aviso y el del mismo día coinciden: se envía uno.
+    if (programada.avisoDiasAntes > 0 && aviso.isAfter(ahora)) {
+      await _plugin.zonedSchedule(
+        id: base,
+        title: 'Mantención próxima: ${programada.titulo}',
+        body: '${programada.titulo} de $patente está programada para el $fechaFmt.',
+        scheduledDate: aviso,
+        notificationDetails: details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    }
+
+    if (dia.isAfter(ahora)) {
+      await _plugin.zonedSchedule(
+        id: base + 1,
+        title: 'Mantención programada para hoy',
+        body: '${programada.titulo} de $patente está programada para hoy.',
+        scheduledDate: dia,
         notificationDetails: details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
