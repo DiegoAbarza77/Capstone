@@ -7,6 +7,8 @@ import 'file_downloader.dart';
 
 import 'login_screen.dart';
 import 'admin_supabase_service.dart';
+import 'beneficios_page.dart';
+import 'metricas_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -125,6 +127,16 @@ class _AdminShellState extends State<AdminShell> {
         pageBuilder: (s) => ReportsPage(service: s),
       ),
       SidebarItem(
+        title: 'Métricas',
+        icon: Icons.insights_outlined,
+        pageBuilder: (s) => MetricasPage(service: s),
+      ),
+      SidebarItem(
+        title: 'Beneficios',
+        icon: Icons.card_giftcard_outlined,
+        pageBuilder: (s) => BeneficiosPage(service: s),
+      ),
+      SidebarItem(
         title: 'Auditoría',
         icon: Icons.receipt_long_outlined,
         pageBuilder: (s) => AuditLogPage(service: s),
@@ -139,14 +151,16 @@ class _AdminShellState extends State<AdminShell> {
     if (isSuper) {
       return all;
     } else {
-      // Operator gets Dashboard, Pórticos, Tarifas, Reportes
+      // Operator gets Dashboard, Pórticos, Tarifas, Reportes, Métricas y Beneficios
       return all
           .where(
             (item) =>
                 item.title == 'Dashboard' ||
                 item.title == 'Pórticos' ||
                 item.title == 'Tarifas' ||
-                item.title == 'Reportes',
+                item.title == 'Reportes' ||
+                item.title == 'Métricas' ||
+                item.title == 'Beneficios',
           )
           .toList();
     }

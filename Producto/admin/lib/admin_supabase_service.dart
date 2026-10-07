@@ -1,4 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'beneficio_logica.dart';
+import 'metricas_logica.dart';
 
 class AdminOverview {
   const AdminOverview({
@@ -236,6 +240,153 @@ class AdminSupabaseService {
     if (response.status != 200) {
       throw Exception('No se pudo eliminar el administrador: ${response.data}');
     }
+  }
+
+  // ── Beneficios (CU19) ──────────────────────────────────────────────
+
+  /// Todos los beneficios, activos o no: las políticas de la base de datos le
+  /// dan al administrador visibilidad completa.
+  Stream<List<Beneficio>> streamBeneficios() {
+    return _client
+        .from('beneficios')
+        .stream(primaryKey: ['id'])
+        .map((rows) => rows.map(Beneficio.fromJson).toList());
+  }
+
+  static const _bucketImagenes = 'beneficios_imagenes';
+
+  /// Sube la imagen promocional y devuelve su dirección pública. Lanza una
+  /// excepción si Storage la rechaza (formato o peso no permitidos).
+  Future<String> subirImagenBeneficio({required Uint8List bytes, required String nombre}) async {
+    // Solo letras, números y algunos signos: el nombre original puede traer
+    // espacios o caracteres que no son válidos en una ruta de Storage.
+    final limpio = nombre.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    final ruta = '${DateTime.now().millisecondsSinceEpoch}_$limpio';
+    await _client.storage.from(_bucketImagenes).uploadBinary(
+          ruta,
+          bytes,
+          fileOptions: FileOptions(contentType: mimeDeImagen(nombre)),
+        );
+    return _client.storage.from(_bucketImagenes).getPublicUrl(ruta);
+  }
+
+  /// Crea un beneficio (si no tiene id) o actualiza uno existente, y deja el
+  /// movimiento en la bitácora de auditoría.
+  Future<void> guardarBeneficio(Beneficio beneficio) async {
+    final esNuevo = beneficio.id.isEmpty;
+    if (esNuevo) {
+      await _client.from('beneficios').insert(beneficio.toJson());
+    } else {
+      await _client.from('beneficios').update(beneficio.toJson()).eq('id', beneficio.id);
+    }
+    await _registrarSinFallar(
+      action: esNuevo ? 'Crear beneficio' : 'Editar beneficio',
+      target: beneficio.titulo,
+      details: '${beneficio.comercio} · ${etiquetaCategoria(beneficio.categoria)}'
+          ' · ${beneficio.activo ? 'activo' : 'desactivado'}',
+    );
+  }
+
+  /// Activa o desactiva un beneficio, o lo marca o desmarca como destacado.
+  Future<void> cambiarEstadoBeneficio(Beneficio beneficio, {bool? activo, bool? destacado}) async {
+    final cambios = <String, dynamic>{
+      'activo': ?activo,
+      'destacado': ?destacado,
+      'fecha_actualizacion': DateTime.now().toUtc().toIso8601String(),
+    };
+    await _client.from('beneficios').update(cambios).eq('id', beneficio.id);
+
+    final detalle = [
+      if (activo != null) activo ? 'activado' : 'desactivado',
+      if (destacado != null) destacado ? 'marcado como destacado' : 'quitado de destacados',
+    ].join(', ');
+    await _registrarSinFallar(action: 'Cambiar beneficio', target: beneficio.titulo, details: detalle);
+  }
+
+  /// La bitácora es un registro auxiliar: si falla, la acción que ya se hizo no
+  /// debe darse por fallida.
+  Future<void> _registrarSinFallar({required String action, required String target, required String details}) async {
+    try {
+      await logAction(action: action, target: target, details: details);
+    } catch (e) {
+      debugPrint('TAG_OK_ADMIN: no se pudo registrar en la auditoría: $e');
+    }
+  }
+
+  // ── Métricas de uso (CU20) ─────────────────────────────────────────
+
+  /// Trae TODAS las filas, de a páginas: Supabase devuelve como máximo 1.000 por
+  /// consulta y, sin esto, las métricas quedarían cortadas en silencio.
+  Future<List<Map<String, dynamic>>> _traerTodo(
+    String tabla,
+    String columnas, {
+    String? columnaFecha,
+    DateTime? inicio,
+    DateTime? fin,
+  }) async {
+    const tamanoPagina = 1000;
+    final filas = <Map<String, dynamic>>[];
+    var desdeFila = 0;
+
+    while (true) {
+      var consulta = _client.from(tabla).select(columnas);
+      if (columnaFecha != null && inicio != null) {
+        consulta = consulta.gte(columnaFecha, inicio.toUtc().toIso8601String());
+      }
+      if (columnaFecha != null && fin != null) {
+        consulta = consulta.lte(columnaFecha, fin.toUtc().toIso8601String());
+      }
+      final lote = await consulta.order('id').range(desdeFila, desdeFila + tamanoPagina - 1);
+      filas.addAll(lote);
+      if (lote.length < tamanoPagina) break;
+      desdeFila += tamanoPagina;
+    }
+    return filas;
+  }
+
+  /// Reúne las filas necesarias para las métricas de [desde] a [hasta]. Solo
+  /// pide identificadores, fechas y montos: nunca correos, nombres ni datos
+  /// personales.
+  Future<FilasMetricas> fetchFilasMetricas({required DateTime desde, required DateTime hasta}) async {
+    final limites = limitesDelPeriodo(desde, hasta);
+    final inicio = limites.inicio;
+    final fin = limites.fin;
+
+    final resultados = await Future.wait([
+      _count('usuarios'),
+      _count('vehiculos'),
+      _traerTodo('usuarios', 'id, fecha_creacion', columnaFecha: 'fecha_creacion', inicio: inicio, fin: fin),
+      _traerTodo('vehiculos', 'id, usuario_id, created_at'),
+      _traerTodo('trips', 'id, usuario_id, created_at, total_cost', columnaFecha: 'created_at', inicio: inicio, fin: fin),
+      _traerTodo('combustible_cargas', 'id, usuario_id, created_at, total, origen',
+          columnaFecha: 'created_at', inicio: inicio, fin: fin),
+      _traerTodo('mantenciones', 'id, usuario_id, created_at, costo, origen',
+          columnaFecha: 'created_at', inicio: inicio, fin: fin),
+      _traerTodo('estacionamientos', 'id, usuario_id, created_at, costo, origen',
+          columnaFecha: 'created_at', inicio: inicio, fin: fin),
+      _traerTodo('vehiculo_documentos', 'id, vehiculo_id, fecha_actualizacion, origen',
+          columnaFecha: 'fecha_actualizacion', inicio: inicio, fin: fin),
+      _traerTodo('audited_invoices', 'id, usuario_id, created_at, ai_report',
+          columnaFecha: 'created_at', inicio: inicio, fin: fin),
+    ]);
+
+    return FilasMetricas(
+      usuariosTotales: resultados[0] as int,
+      vehiculosTotales: resultados[1] as int,
+      usuarios: resultados[2] as List<Map<String, dynamic>>,
+      vehiculos: resultados[3] as List<Map<String, dynamic>>,
+      viajes: resultados[4] as List<Map<String, dynamic>>,
+      cargas: resultados[5] as List<Map<String, dynamic>>,
+      mantenciones: resultados[6] as List<Map<String, dynamic>>,
+      estacionamientos: resultados[7] as List<Map<String, dynamic>>,
+      documentos: resultados[8] as List<Map<String, dynamic>>,
+      boletas: resultados[9] as List<Map<String, dynamic>>,
+    );
+  }
+
+  Future<MetricasUso> fetchMetricasUso({required DateTime desde, required DateTime hasta}) async {
+    final filas = await fetchFilasMetricas(desde: desde, hasta: hasta);
+    return calcularMetricas(filas, desde: desde, hasta: hasta);
   }
 
   Future<int> _count(String table) async {

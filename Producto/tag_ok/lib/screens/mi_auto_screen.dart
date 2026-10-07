@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/documento_vehiculo_model.dart';
 import '../data/models/estacionamiento_model.dart';
+import '../data/services/beneficios_service.dart';
 import '../data/services/estacionamiento_service.dart';
 import '../utils/estacionamiento_calculos.dart';
 import '../data/models/mantencion_model.dart';
 import '../data/services/mantencion_service.dart';
 import '../data/services/vehiculo_documentos_service.dart';
 import '../utils/mantencion_calculos.dart';
+import 'beneficios_screen.dart';
 import 'combustible_screen.dart';
 import 'documentos_vehiculo_screen.dart';
 import 'estacionamientos_screen.dart';
@@ -163,6 +165,12 @@ class _MiAutoScreenState extends State<MiAutoScreen> {
             icon: const Icon(Icons.add, color: Colors.white),
             label: const Text('Agregar vehículo', style: TextStyle(color: Colors.white)),
           ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BeneficiosScreen())),
+            icon: const Icon(Icons.card_giftcard_outlined, size: 18),
+            label: const Text('Ver beneficios'),
+          ),
         ],
       ),
     );
@@ -241,6 +249,9 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
   late final Stream<List<MantencionProgramadaModel>> _programadasStream;
   late final Stream<List<EstacionamientoModel>> _estacionamientosStream;
 
+  /// Cantidad de beneficios disponibles; null mientras carga o si falló.
+  int? _beneficiosDisponibles;
+
   String get _vehiculoId => widget.vehiculo['id'] as String;
   String get _patente => (widget.vehiculo['patente'] ?? '').toString();
   double? get _kmActual => (widget.vehiculo['kilometraje'] as num?)?.toDouble();
@@ -251,16 +262,15 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
     _documentosStream = VehiculoDocumentosService().streamDocumentos(_vehiculoId);
     _programadasStream = MantencionService().streamProgramadas(_vehiculoId);
     _estacionamientosStream = EstacionamientoService().streamPorVehiculo(_vehiculoId);
+    // Es solo un dato de apoyo para la tarjeta: si falla, la tarjeta sigue
+    // funcionando y muestra el texto genérico.
+    BeneficiosService().obtenerVigentes().then((lista) {
+      if (mounted) setState(() => _beneficiosDisponibles = lista.length);
+    }).catchError((_) {});
   }
 
   void _ir(Widget pantalla) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => pantalla));
-  }
-
-  void _proximamente(String modulo) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$modulo estará disponible pronto.'), behavior: SnackBarBehavior.floating),
-    );
   }
 
   @override
@@ -534,10 +544,13 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
       _ModuloTile(
         icono: Icons.card_giftcard_outlined,
         titulo: 'Beneficios',
-        subtitulo: 'Próximamente',
+        subtitulo: _beneficiosDisponibles == null
+            ? 'Descuentos y alianzas'
+            : (_beneficiosDisponibles == 0
+                ? 'Sin beneficios por ahora'
+                : '$_beneficiosDisponibles ${_beneficiosDisponibles == 1 ? 'disponible' : 'disponibles'}'),
         color: const Color(0xFFEC4899),
-        proximamente: true,
-        onTap: () => _proximamente('Beneficios'),
+        onTap: () => _ir(const BeneficiosScreen()),
       ),
       _ModuloTile(
         icono: Icons.directions_car_outlined,
@@ -585,7 +598,6 @@ class _ModuloTile extends StatelessWidget {
   final String subtitulo;
   final Color? colorSubtitulo;
   final Color color;
-  final bool proximamente;
   final VoidCallback onTap;
 
   const _ModuloTile({
@@ -595,57 +607,53 @@ class _ModuloTile extends StatelessWidget {
     required this.color,
     required this.onTap,
     this.colorSubtitulo,
-    this.proximamente = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: proximamente ? 0.6 : 1,
-      child: Material(
-        color: _navBgColor,
+    return Material(
+      color: _navBgColor,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icono, color: color, size: 22),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    titulo,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: _textMain, fontSize: 15, fontWeight: FontWeight.bold),
                   ),
-                  child: Icon(icono, color: color, size: 22),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      titulo,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: _textMain, fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitulo,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: colorSubtitulo ?? _textMuted, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitulo,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: colorSubtitulo ?? _textMuted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
