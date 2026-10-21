@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/estacionamiento_model.dart';
 import 'cache_offline.dart';
+import 'consulta_periodica.dart';
 
 /// Ya hay un estacionamiento con el cronómetro corriendo para ese vehículo.
 class EstacionamientoEnCursoException implements Exception {
@@ -25,16 +26,27 @@ class ResultadoGuardadoEstacionamiento {
 class EstacionamientoService {
   static const bucket = 'estacionamiento_docs';
 
+  static final AvisoDeCambios _cambios = AvisoDeCambios();
+
   final SupabaseClient _client = Supabase.instance.client;
 
   String get _userId => _client.auth.currentUser!.id;
 
   /// Todos los estacionamientos del vehículo, incluido el que está en curso.
   /// Quien lo use ordena y filtra (ver utils/estacionamiento_calculos.dart).
+  ///
+  /// Se consulta directamente (al abrir, cada 15 s y tras cada cambio hecho desde
+  /// la app) en vez de usar Realtime, que dejaba la pantalla sin actualizarse si la
+  /// tabla no estaba publicada en el proyecto de Supabase.
   Stream<List<EstacionamientoModel>> streamPorVehiculo(String vehiculoId) {
     return CacheOffline.filas(
       'estacionamientos:$vehiculoId',
-      _client.from('estacionamientos').stream(primaryKey: ['id']).eq('vehiculo_id', vehiculoId),
+      consultaPeriodica<List<Map<String, dynamic>>>(
+        () async => List<Map<String, dynamic>>.from(
+          await _client.from('estacionamientos').select().eq('vehiculo_id', vehiculoId),
+        ),
+        alCambiar: _cambios,
+      ),
     ).map((rows) => rows.map(EstacionamientoModel.fromJson).toList());
   }
 
@@ -67,6 +79,7 @@ class EstacionamientoService {
           .insert({...nuevo.toJson(), 'usuario_id': _userId})
           .select()
           .single();
+      _cambios.avisar();
       return EstacionamientoModel.fromJson(fila);
     } on PostgrestException catch (e) {
       if (e.code == '23505') throw const EstacionamientoEnCursoException();
@@ -106,12 +119,14 @@ class EstacionamientoService {
         .eq('id', enCurso.id)
         .select()
         .single();
+    _cambios.avisar();
     return EstacionamientoModel.fromJson(fila);
   }
 
   /// Descarta una sesión en curso sin guardarla (por ejemplo, se inició por error).
   Future<void> cancelarEnCurso(String id) async {
     await _client.from('estacionamientos').delete().eq('id', id).eq('en_curso', true);
+    _cambios.avisar();
   }
 
   // ── Registro manual o con IA ────────────────────────────────────────
@@ -160,11 +175,13 @@ class EstacionamientoService {
       }
     }
 
+    _cambios.avisar();
     return ResultadoGuardadoEstacionamiento(estacionamiento: guardado, fallaAdjunto: fallaAdjunto);
   }
 
   Future<void> eliminar(EstacionamientoModel estacionamiento) async {
     await _client.from('estacionamientos').delete().eq('id', estacionamiento.id);
+    _cambios.avisar();
     final ruta = estacionamiento.documentoPath;
     if (ruta != null) await _borrarArchivo(ruta);
   }

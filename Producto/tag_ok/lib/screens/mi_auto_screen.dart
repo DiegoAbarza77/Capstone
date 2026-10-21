@@ -290,9 +290,12 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
     _escuchar(_estacionamientosStream, (d) => _estacionamientos = d);
     // Es solo un dato de apoyo para la tarjeta: si falla, la tarjeta sigue
     // funcionando y muestra el texto genérico.
-    BeneficiosService().obtenerVigentes().then((lista) {
-      if (mounted) setState(() => _beneficiosDisponibles = lista.length);
-    }).catchError((_) {});
+    _suscripciones.add(BeneficiosService().streamVigentes().listen(
+      (lista) {
+        if (mounted) setState(() => _beneficiosDisponibles = lista.length);
+      },
+      onError: (_) {},
+    ));
   }
 
   void _escuchar<T>(Stream<List<T>> flujo, void Function(List<T>) guardar) {

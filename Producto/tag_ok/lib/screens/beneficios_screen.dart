@@ -43,25 +43,23 @@ class BeneficiosScreen extends StatefulWidget {
 class _BeneficiosScreenState extends State<BeneficiosScreen> {
   final BeneficiosService _service = BeneficiosService();
 
-  late Future<List<BeneficioModel>> _futuro;
+  late Stream<List<BeneficioModel>> _stream;
   FiltrosBeneficios _filtros = const FiltrosBeneficios();
 
   @override
   void initState() {
     super.initState();
-    _futuro = _service.obtenerVigentes();
+    _stream = _service.streamVigentes();
   }
 
-  void _recargar() => setState(() => _futuro = _service.obtenerVigentes());
+  /// Vuelve a armar el flujo (botón "Reintentar" y deslizar para actualizar): consulta
+  /// de inmediato en vez de esperar al refresco automático.
+  void _recargar() => setState(() => _stream = _service.streamVigentes());
 
   Future<void> _refrescar() async {
-    final nuevo = _service.obtenerVigentes();
-    setState(() => _futuro = nuevo);
-    try {
-      await nuevo;
-    } catch (_) {
-      // El error se muestra en pantalla con el botón "Reintentar".
-    }
+    _recargar();
+    // Da tiempo a que llegue la primera respuesta antes de ocultar el indicador.
+    await Future<void>.delayed(const Duration(milliseconds: 600));
   }
 
   Future<void> _abrirFiltros(List<BeneficioModel> todos) async {
@@ -90,11 +88,11 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<BeneficioModel>>(
-      future: _futuro,
+    return StreamBuilder<List<BeneficioModel>>(
+      stream: _stream,
       builder: (context, snap) {
         final todos = snap.data ?? const <BeneficioModel>[];
-        final cargado = snap.connectionState == ConnectionState.done && !snap.hasError;
+        final cargado = snap.hasData;
 
         return Scaffold(
           backgroundColor: kMantFondo,
@@ -137,12 +135,8 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
   }
 
   Widget _construirCuerpo(AsyncSnapshot<List<BeneficioModel>> snap, List<BeneficioModel> todos) {
-    if (snap.connectionState != ConnectionState.done) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     // E2: falla de red al consultar el catálogo.
-    if (snap.hasError) {
+    if (snap.hasError && !snap.hasData) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -162,6 +156,10 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
           ),
         ),
       );
+    }
+
+    if (!snap.hasData) {
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (todos.isEmpty) {
