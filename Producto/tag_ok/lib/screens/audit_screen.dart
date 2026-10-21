@@ -954,7 +954,7 @@ Instrucciones para redactar el "aiReport":
           if (mounted) {
              ScaffoldMessenger.of(context).showSnackBar(
                const SnackBar(
-                 content: Text('Formato no reconocido. Analizando con Inteligencia Artificial...'),
+                 content: Text('Analizando la boleta con Inteligencia Artificial...'),
                  backgroundColor: Color(0xFF8B5CF6),
                  duration: Duration(seconds: 3),
                ),
