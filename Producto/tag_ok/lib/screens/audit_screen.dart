@@ -1,10 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
@@ -12,7 +8,6 @@ import 'package:excel/excel.dart' hide Border, TextSpan;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/trip_history.dart';
 import '../data/services/history_service.dart';
-import '../data/demo_data.dart';
 import 'package:tag_ok/utils/file_saver.dart';
 
 class AuditScreen extends StatefulWidget {
@@ -223,63 +218,6 @@ class _AuditScreenState extends State<AuditScreen> {
     }
   }
 
-  // --- GENERADOR DEMO JHGK50 (SEED DATABASE) ---
-
-  Future<void> _generateDemoTrips() async {
-    final userId = Supabase.instance.client.auth.currentUser!.id;
-    final client = Supabase.instance.client;
-
-    setState(() => _isExtracting = true);
-
-    try {
-      // 1. Borrar viajes demo anteriores de JHGK50
-      await client
-          .from('trips')
-          .delete()
-          .eq('usuario_id', userId)
-          .eq('vehicle_name', 'Hyundai (JHGK50)');
-
-      // 2. Insertar todos los viajes estáticos de prueba (40 viajes, 239 peajes) de una vez
-      final rows = staticDemoTrips.map((trip) => {
-        'usuario_id': userId,
-        'date': trip['date'],
-        'total_cost': (trip['totalCost'] as num).toDouble(),
-        'distance_km': (trip['distanceKm'] as num).toDouble(),
-        'duration': trip['duration'],
-        'vehicle_name': trip['vehicleName'],
-        'tolls': (trip['tolls'] as List).map((t) => {
-          'name': t['name'],
-          'cost': (t['cost'] as num).toDouble(),
-          'timestamp': t['timestamp'],
-        }).toList(),
-      }).toList();
-      await client.from('trips').insert(rows);
-
-      setState(() => _isExtracting = false);
-
-      int totalTollsCount = staticDemoTrips.fold(0, (acc, trip) => acc + (trip['tolls'] as List).length);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('¡Historial demo de la patente JHGK50 (${staticDemoTrips.length} viajes, $totalTollsCount peajes) cargado con éxito!'),
-            backgroundColor: const Color(0xFF10B981),
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() => _isExtracting = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al sembrar viajes demo: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
-  }
-
   Widget _buildFormattedReport(String text) {
     final lines = text.split('\n');
     List<Widget> children = [];
@@ -400,106 +338,6 @@ class _AuditScreenState extends State<AuditScreen> {
     return false;
   }
 
-  Future<void> _createGpsTripsForCrossings(
-    List<Map<String, dynamic>> crossings,
-    String patent,
-    bool withDiscrepancies,
-    String concessionaire,
-  ) async {
-    final userId = Supabase.instance.client.auth.currentUser!.id;
-    final client = Supabase.instance.client;
-
-    // 1. Borrar viajes anteriores de esta patente
-    await client
-        .from('trips')
-        .delete()
-        .eq('usuario_id', userId)
-        .eq('vehicle_name', 'Hyundai ($patent)');
-
-    // Filtrar cruces si es con discrepancias (omitir 1 de cada 8 cruces para probar el sistema de alertas)
-    final List<Map<String, dynamic>> crossingsToSimulate = [];
-    for (int i = 0; i < crossings.length; i++) {
-      if (withDiscrepancies && (i % 8 == 0)) {
-        continue;
-      }
-      crossingsToSimulate.add(crossings[i]);
-    }
-
-    // Agrupar cruces por fecha
-    final Map<String, List<Map<String, dynamic>>> grouped = {};
-    for (var c in crossingsToSimulate) {
-      final date = c['date'];
-      grouped.putIfAbsent(date, () => []).add(c);
-    }
-
-    final List<Map<String, dynamic>> tripsToInsert = [];
-
-    for (var dateStr in grouped.keys) {
-      final list = grouped[dateStr]!;
-      list.sort((a, b) => a['time'].compareTo(b['time']));
-
-      List<Map<String, dynamic>> currentTolls = [];
-      DateTime? firstTime;
-
-      for (var c in list) {
-        final cTime = DateTime.parse('${c['date']} ${c['time']}');
-        if (firstTime == null) {
-          firstTime = cTime;
-          currentTolls.add({
-            'name': '${c['portico']} - $concessionaire',
-            'cost': c['cost'],
-            'timestamp': cTime.toIso8601String(),
-          });
-        } else {
-          final diff = cTime.difference(firstTime).inMinutes.abs();
-          if (diff <= 120) {
-            currentTolls.add({
-              'name': '${c['portico']} - $concessionaire',
-              'cost': c['cost'],
-              'timestamp': cTime.toIso8601String(),
-            });
-          } else {
-            final totalCost = currentTolls.fold(0.0, (acc, t) => acc + (t['cost'] as double));
-            tripsToInsert.add({
-              'usuario_id': userId,
-              'date': firstTime.toIso8601String(),
-              'total_cost': totalCost,
-              'distance_km': currentTolls.length * 4.5,
-              'duration': '${currentTolls.length * 5} min',
-              'vehicle_name': 'Hyundai ($patent)',
-              'tolls': List.from(currentTolls),
-            });
-
-            firstTime = cTime;
-            currentTolls = [{
-              'name': '${c['portico']} - $concessionaire',
-              'cost': c['cost'],
-              'timestamp': cTime.toIso8601String(),
-            }];
-          }
-        }
-      }
-
-      if (currentTolls.isNotEmpty && firstTime != null) {
-        final totalCost = currentTolls.fold(0.0, (acc, t) => acc + (t['cost'] as double));
-        tripsToInsert.add({
-          'usuario_id': userId,
-          'date': firstTime.toIso8601String(),
-          'total_cost': totalCost,
-          'distance_km': currentTolls.length * 4.5,
-          'duration': '${currentTolls.length * 5} min',
-          'vehicle_name': 'Hyundai ($patent)',
-          'tolls': List.from(currentTolls),
-        });
-      }
-    }
-
-    // 2. Insertar todos los viajes de una vez
-    if (tripsToInsert.isNotEmpty) {
-      await client.from('trips').insert(tripsToInsert);
-    }
-  }
-
   /// Llama a la Edge Function "gemini-proxy": Gemini corre del lado del
   /// servidor, así GEMINI_API_KEY nunca viaja al navegador ni queda
   /// expuesta en el build web.
@@ -508,14 +346,28 @@ class _AuditScreenState extends State<AuditScreen> {
     Uint8List? imageBytes,
     String? imageMimeType,
   }) async {
-    final response = await Supabase.instance.client.functions.invoke(
-      'gemini-proxy',
-      body: {
-        'prompt': prompt,
-        if (imageBytes != null) 'imageBase64': base64Encode(imageBytes),
-        if (imageMimeType != null) 'imageMimeType': imageMimeType,
-      },
-    );
+    // Gemini a veces responde "alta demanda" (503) de forma pasajera: se
+    // reintenta con espera creciente antes de rendirse.
+    FunctionResponse? response;
+    for (int intento = 1; response == null; intento++) {
+      try {
+        response = await Supabase.instance.client.functions.invoke(
+          'gemini-proxy',
+          body: {
+            'prompt': prompt,
+            'imageBase64': ?(imageBytes != null ? base64Encode(imageBytes) : null),
+            'imageMimeType': ?imageMimeType,
+          },
+        );
+      } on FunctionsHttpException catch (e) {
+        final saturado = e.status == 502 || e.status == 503;
+        if (!saturado) rethrow;
+        if (intento >= 3) {
+          throw Exception('La IA está con mucha demanda en este momento. Espera un minuto e inténtalo de nuevo.');
+        }
+        await Future.delayed(Duration(seconds: 2 * intento));
+      }
+    }
     if (response.data is! Map) {
       throw Exception('Respuesta inesperada del servicio de IA.');
     }
@@ -528,11 +380,11 @@ class _AuditScreenState extends State<AuditScreen> {
   }
 
   Future<Map<String, dynamic>> _extractDataWithGemini(String rawText, String fileName) async {
-    final limitedText = rawText.length > 60000 ? rawText.substring(0, 60000) : rawText;
-
+    // El proxy limita el tamaño de la petición: se recorta el texto crudo.
+    final limitedText = rawText.length > 15000 ? rawText.substring(0, 15000) : rawText;
     final prompt = '''
 Eres un asistente experto en analizar boletas de peaje y autopistas de Chile.
-A continuación te proporcionaré el texto crudo extraído de un archivo llamado "\$fileName".
+A continuación te proporcionaré el texto crudo extraído de un archivo llamado "$fileName".
 Tu tarea es encontrar y extraer:
 1. La concesionaria de la autopista (ej: Autopista Central, Costanera Norte, Vespucio Sur, Vespucio Norte, etc.). Si no estás seguro, usa "Autopista Desconocida".
 2. La patente principal del vehículo cobrado (por lo general 6 caracteres alfanuméricos).
@@ -543,7 +395,7 @@ Tu tarea es encontrar y extraer:
 
 Texto crudo del archivo:
 """
-\$limitedText
+$limitedText
 """
 
 Debes devolver EXCLUSIVAMENTE un objeto JSON válido con esta estructura estricta:
@@ -570,7 +422,7 @@ Debes devolver EXCLUSIVAMENTE un objeto JSON válido con esta estructura estrict
       }
       return parsed;
     } catch (e) {
-      debugPrint('Gemini Extraction Error: \$e\\nResponse: \$responseText');
+      debugPrint('Gemini Extraction Error: $e\nResponse: $responseText');
       throw Exception('Gemini no pudo interpretar correctamente el formato de la boleta.');
     }
   }
@@ -584,7 +436,7 @@ Debes devolver EXCLUSIVAMENTE un objeto JSON válido con esta estructura estrict
   ) async {
     final prompt = '''
 Eres un asistente experto en analizar fotografías de boletas de peaje y autopistas de Chile.
-A continuación te proporciono una imagen de un archivo llamado "\$fileName".
+A continuación te proporciono una imagen de un archivo llamado "$fileName".
 Tu tarea es mirar la imagen y encontrar y extraer:
 1. La concesionaria de la autopista (ej: Autopista Central, Costanera Norte, Vespucio Sur, Vespucio Norte, etc.). Si no estás seguro, usa "Autopista Desconocida".
 2. La patente principal del vehículo cobrado (por lo general 6 caracteres alfanuméricos).
@@ -621,7 +473,7 @@ Debes devolver EXCLUSIVAMENTE un objeto JSON válido con esta estructura estrict
       }
       return parsed;
     } catch (e) {
-      debugPrint('Gemini Image Extraction Error: \$e\\nResponse: \$responseText');
+      debugPrint('Gemini Image Extraction Error: $e\nResponse: $responseText');
       throw Exception('Gemini no pudo leer correctamente la foto de la boleta.');
     }
   }
@@ -770,7 +622,7 @@ Instrucciones para redactar el "aiReport":
         final Map<String, dynamic> aiResult = jsonDecode(responseText);
         aiReport = aiResult['aiReport'] ?? 'Sin comentarios adicionales.';
       } catch (e) {
-        print('Error en auditoría Gemini: $e');
+        debugPrint('Error en auditoría Gemini: $e');
         // Fallback local corto si hay error de API o red
         aiReport = '### Auditoría (Resumen Local) 📋\n\n'
             'Se detectaron discrepancias entre los cobros y el GPS:\n\n'
@@ -906,11 +758,17 @@ Instrucciones para redactar el "aiReport":
               final val = headerRow[i]?.value?.toString().toLowerCase().trim() ?? '';
               if (val.contains('patente')) {
                 idxPatent = i;
-              } else if (val.contains('fecha')) idxDate = i;
-              else if (val.contains('hora')) idxTime = i;
-              else if (val.contains('portico') || val.contains('pórtico')) idxPortico = i;
-              else if (val.contains('concesionaria')) idxConcession = i;
-              else if (val.contains('valor') || val.contains('monto') || val.contains('importe')) idxCost = i;
+              } else if (val.contains('fecha')) {
+                idxDate = i;
+              } else if (val.contains('hora')) {
+                idxTime = i;
+              } else if (val.contains('portico') || val.contains('pórtico')) {
+                idxPortico = i;
+              } else if (val.contains('concesionaria')) {
+                idxConcession = i;
+              } else if (val.contains('valor') || val.contains('monto') || val.contains('importe')) {
+                idxCost = i;
+              }
             }
 
             if (idxPatent == -1) idxPatent = 0;
@@ -950,20 +808,20 @@ Instrucciones para redactar el "aiReport":
                 if (dateParts[0].length == 4) {
                   formattedDate = fDate;
                 } else {
-                  formattedDate = '\${dateParts[2]}-\${dateParts[1]}-\${dateParts[0]}';
+                  formattedDate = '${dateParts[2]}-${dateParts[1]}-${dateParts[0]}';
                 }
               } else if (fDate.contains('/')) {
                 final dateParts = fDate.split('/');
                 if (dateParts[0].length == 4) {
                   formattedDate = fDate.replaceAll('/', '-');
                 } else {
-                  formattedDate = '\${dateParts[2]}-\${dateParts[1]}-\${dateParts[0]}';
+                  formattedDate = '${dateParts[2]}-${dateParts[1]}-${dateParts[0]}';
                 }
               }
 
               extractedCrossings.add({
                 'date': formattedDate,
-                'time': fTime.length == 5 ? '\$fTime:00' : fTime,
+                'time': fTime.length == 5 ? '$fTime:00' : fTime,
                 'portico': fPortico,
                 'cost': cost,
               });
@@ -985,7 +843,7 @@ Instrucciones para redactar el "aiReport":
             for (int i = 0; i < lines.length; i++) {
               final line = lines[i].trim();
               // Formato de fecha y hora: DD/MM/AAAA HH:MM
-              if (RegExp(r'^\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}\$').hasMatch(line)) {
+              if (RegExp(r'^\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}$').hasMatch(line)) {
                 if (i + 5 < lines.length) {
                   final String dateTimeStr = line;
                   final String fPortico = lines[i + 2].trim();
@@ -994,8 +852,8 @@ Instrucciones para redactar el "aiReport":
 
                   if (fCostRaw.contains('\$') && fPatent.length == 6) {
                     final dateParts = dateTimeStr.split(' ')[0].split('/');
-                    final formattedDate = '\${dateParts[2]}-\${dateParts[1]}-\${dateParts[0]}';
-                    final String fTime = '\${dateTimeStr.split(' ')[1]}:00';
+                    final formattedDate = '${dateParts[2]}-${dateParts[1]}-${dateParts[0]}';
+                    final String fTime = '${dateTimeStr.split(' ')[1]}:00';
                     
                     final double cost = double.parse(
                       fCostRaw.replaceAll('\$', '').replaceAll('.', '').replaceAll(',', '.').trim()
@@ -1020,7 +878,7 @@ Instrucciones para redactar el "aiReport":
             for (int i = 0; i < lines.length; i++) {
               final line = lines[i].trim();
               // Formato de fecha y hora: DD/MM/AAAA HH:MM
-              if (RegExp(r'^\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}\$').hasMatch(line)) {
+              if (RegExp(r'^\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}$').hasMatch(line)) {
                 if (i + 5 < lines.length) {
                   final String dateTimeStr = line;
                   final String fPortico = lines[i + 2].trim();
@@ -1029,8 +887,8 @@ Instrucciones para redactar el "aiReport":
 
                   if (fCostRaw.contains('\$') && fPatent.length == 6) {
                     final dateParts = dateTimeStr.split(' ')[0].split('/');
-                    final formattedDate = '\${dateParts[2]}-\${dateParts[1]}-\${dateParts[0]}';
-                    final String fTime = '\${dateTimeStr.split(' ')[1]}:00';
+                    final formattedDate = '${dateParts[2]}-${dateParts[1]}-${dateParts[0]}';
+                    final String fTime = '${dateTimeStr.split(' ')[1]}:00';
                     
                     final double cost = double.parse(
                       fCostRaw.replaceAll('\$', '').replaceAll('.', '').replaceAll(',', '.').trim()
@@ -1070,7 +928,7 @@ Instrucciones para redactar el "aiReport":
               );
 
               final dateParts = fDate.split('-');
-              final formattedDate = '\${dateParts[2]}-\${dateParts[1]}-\${dateParts[0]}';
+              final formattedDate = '${dateParts[2]}-${dateParts[1]}-${dateParts[0]}';
 
               extractedCrossings.add({
                 'date': formattedDate,
@@ -1115,7 +973,7 @@ Instrucciones para redactar el "aiReport":
             for (var table in excel.tables.keys) {
               final sheet = excel.tables[table]!;
               for (var row in sheet.rows) {
-                rawText += '${row.map((c) => c?.value?.toString() ?? '').join(' ')}\\n';
+                rawText += '${row.map((c) => c?.value?.toString() ?? '').join(' ')}\n';
               }
             }
           }
@@ -1129,7 +987,7 @@ Instrucciones para redactar el "aiReport":
           
         } else {
           // Re-throw the original error if AI is disabled
-          throw Exception('Error local: \$localParsingError. Activa "Auditar con IA" para soportar formatos desconocidos.');
+          throw Exception('Error local: $localParsingError. Activa "Auditar con IA" para soportar formatos desconocidos.');
         }
       }
       }

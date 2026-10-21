@@ -371,6 +371,7 @@ class _DocumentosVehiculoScreenState extends State<DocumentosVehiculoScreen> {
     DateTime? fechaVencimiento = _parseFechaSegura(extraido['fecha_vencimiento']);
     final dateFmt = DateFormat('dd/MM/yyyy');
     bool guardando = false;
+    String? errorGuardado;
 
     await showDialog(
       context: context,
@@ -479,6 +480,9 @@ class _DocumentosVehiculoScreenState extends State<DocumentosVehiculoScreen> {
                         valor: fechaVencimiento != null ? dateFmt.format(fechaVencimiento!) : 'Sin definir',
                         onTap: () => pickDate(true),
                       ),
+                      if (validarFechasDocumento(fechaEmision, fechaVencimiento) != null)
+                        _textoError(validarFechasDocumento(fechaEmision, fechaVencimiento)!),
+                      if (errorGuardado != null) _textoError(errorGuardado!),
                     ],
                   ),
                 ),
@@ -493,10 +497,13 @@ class _DocumentosVehiculoScreenState extends State<DocumentosVehiculoScreen> {
                     backgroundColor: iaColor,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: guardando
+                  onPressed: guardando || validarFechasDocumento(fechaEmision, fechaVencimiento) != null
                       ? null
                       : () async {
-                          setModalState(() => guardando = true);
+                          setModalState(() {
+                            guardando = true;
+                            errorGuardado = null;
+                          });
                           final nuevoDoc = DocumentoVehiculoModel(
                             tipo: tipoSel,
                             numero: numeroCtrl.text.trim().isEmpty ? null : numeroCtrl.text.trim(),
@@ -507,8 +514,18 @@ class _DocumentosVehiculoScreenState extends State<DocumentosVehiculoScreen> {
                             aiCapturadoEn: DateTime.now(),
                             archivoNombre: nombreArchivo,
                           );
-                          await _guardarYNotificar(nuevoDoc);
-                          if (dialogContext.mounted) Navigator.pop(dialogContext);
+                          try {
+                            await _guardarYNotificar(nuevoDoc);
+                            if (dialogContext.mounted) Navigator.pop(dialogContext);
+                          } catch (_) {
+                            // Los datos siguen en pantalla para poder reintentar.
+                            if (dialogContext.mounted) {
+                              setModalState(() {
+                                guardando = false;
+                                errorGuardado = 'No se pudo guardar. Revisa tu conexión e intenta de nuevo.';
+                              });
+                            }
+                          }
                         },
                   child: guardando
                       ? const SizedBox(
@@ -524,6 +541,56 @@ class _DocumentosVehiculoScreenState extends State<DocumentosVehiculoScreen> {
         );
       },
     );
+  }
+
+  Widget _textoError(String texto) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(texto, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12)),
+    );
+  }
+
+  /// Pide confirmación y borra el documento junto con sus recordatorios.
+  /// Devuelve true si quedó eliminado.
+  Future<bool> _eliminarDocumento(DocumentoVehiculoModel doc) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: navBgColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Eliminar ${doc.label}', style: TextStyle(color: textMain, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Se borrarán los datos de este documento y sus recordatorios de vencimiento. Esta acción no se puede deshacer.',
+          style: TextStyle(color: textMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancelar', style: TextStyle(color: textMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmar eliminación', style: TextStyle(color: Color(0xFFEF4444))),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true) return false;
+    try {
+      await _service.eliminarDocumento(widget.vehiculoId, doc.tipo);
+      await _notifService.cancelarParaDocumento(widget.vehiculoId, doc.tipo);
+      return true;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo eliminar. Revisa tu conexión e intenta de nuevo.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return false;
+    }
   }
 
   Widget _avisoRevision(String texto) {
@@ -571,6 +638,9 @@ class _DocumentosVehiculoScreenState extends State<DocumentosVehiculoScreen> {
     DateTime? fechaEmision = doc.fechaEmision;
     DateTime? fechaVencimiento = doc.fechaVencimiento;
     final dateFmt = DateFormat('dd/MM/yyyy');
+    final existe = doc.numero != null || doc.compania != null || doc.fechaEmision != null || doc.fechaVencimiento != null;
+    bool guardando = false;
+    String? errorGuardado;
 
     showDialog(
       context: context,
@@ -637,12 +707,25 @@ class _DocumentosVehiculoScreenState extends State<DocumentosVehiculoScreen> {
                       valor: fechaVencimiento != null ? dateFmt.format(fechaVencimiento!) : 'Sin definir',
                       onTap: () => pickDate(true),
                     ),
+                    if (validarFechasDocumento(fechaEmision, fechaVencimiento) != null)
+                      _textoError(validarFechasDocumento(fechaEmision, fechaVencimiento)!),
+                    if (errorGuardado != null) _textoError(errorGuardado!),
                   ],
                 ),
               ),
               actions: [
+                if (existe)
+                  TextButton(
+                    onPressed: guardando
+                        ? null
+                        : () async {
+                            final eliminado = await _eliminarDocumento(doc);
+                            if (eliminado && context.mounted) Navigator.pop(context);
+                          },
+                    child: const Text('Eliminar', style: TextStyle(color: Color(0xFFEF4444))),
+                  ),
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: guardando ? null : () => Navigator.pop(context),
                   child: Text('Cancelar', style: TextStyle(color: textMuted)),
                 ),
                 ElevatedButton(
@@ -650,7 +733,13 @@ class _DocumentosVehiculoScreenState extends State<DocumentosVehiculoScreen> {
                     backgroundColor: primaryColor,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: () async {
+                  onPressed: guardando || validarFechasDocumento(fechaEmision, fechaVencimiento) != null
+                      ? null
+                      : () async {
+                    setModalState(() {
+                      guardando = true;
+                      errorGuardado = null;
+                    });
                     final nuevoDoc = DocumentoVehiculoModel(
                       tipo: doc.tipo,
                       numero: numeroCtrl.text.trim().isEmpty ? null : numeroCtrl.text.trim(),
@@ -661,8 +750,17 @@ class _DocumentosVehiculoScreenState extends State<DocumentosVehiculoScreen> {
                       // extracción de IA, editarlo a mano ya lo desvincula de
                       // ese origen -- ahora es un dato que el usuario tecleó.
                     );
-                    await _guardarYNotificar(nuevoDoc);
-                    if (context.mounted) Navigator.pop(context);
+                    try {
+                      await _guardarYNotificar(nuevoDoc);
+                      if (context.mounted) Navigator.pop(context);
+                    } catch (_) {
+                      if (context.mounted) {
+                        setModalState(() {
+                          guardando = false;
+                          errorGuardado = 'No se pudo guardar. Revisa tu conexión e intenta de nuevo.';
+                        });
+                      }
+                    }
                   },
                   child: const Text('Guardar', style: TextStyle(color: Colors.white)),
                 ),

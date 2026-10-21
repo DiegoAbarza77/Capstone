@@ -1647,12 +1647,14 @@ class _UsersPageState extends State<UsersPage> {
                     .toList();
 
                 if (filteredDocs.isEmpty) {
-                  return const Card(
+                  return Card(
                     child: Center(
                       child: Padding(
-                        padding: EdgeInsets.all(32),
+                        padding: const EdgeInsets.all(32),
                         child: Text(
-                          'No se encontraron usuarios con los filtros aplicados.',
+                          _searchQuery.isNotEmpty
+                              ? 'Usuario no encontrado'
+                              : 'No se encontraron usuarios con los filtros aplicados.',
                         ),
                       ),
                     ),
@@ -1688,6 +1690,7 @@ class _UsersPageState extends State<UsersPage> {
                                   DataColumn(label: Text('Usuario')),
                                   DataColumn(label: Text('Presupuesto')),
                                   DataColumn(label: Text('Vehículo Principal')),
+                                  DataColumn(label: Text('Estado')),
                                   DataColumn(label: Text('Acciones')),
                                 ],
                                 rows: pageDocs.map((doc) {
@@ -1710,6 +1713,8 @@ class _UsersPageState extends State<UsersPage> {
                                       (data['vehiculo_principal_patente'] ??
                                               'Ninguno')
                                           .toString();
+                                  final bool suspendido =
+                                      data['estado'] == 'suspendido';
 
                                   return DataRow(
                                     cells: [
@@ -1811,6 +1816,32 @@ class _UsersPageState extends State<UsersPage> {
                                         ),
                                       ),
                                       DataCell(
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: suspendido
+                                                ? const Color(0xFFFEE2E2)
+                                                : const Color(0xFFDCFCE7),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            suspendido ? 'Suspendida' : 'Activa',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: suspendido
+                                                  ? const Color(0xFFB91C1C)
+                                                  : const Color(0xFF15803D),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      DataCell(
                                         Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
@@ -1841,6 +1872,28 @@ class _UsersPageState extends State<UsersPage> {
                                                 _enviarResetPassword(
                                                   context,
                                                   correo,
+                                                );
+                                              },
+                                            ),
+                                            IconButton(
+                                              icon: Icon(
+                                                suspendido
+                                                    ? Icons.lock_open_outlined
+                                                    : Icons.block_outlined,
+                                                color: suspendido
+                                                    ? Colors.green
+                                                    : Colors.deepOrange,
+                                                size: 20,
+                                              ),
+                                              tooltip: suspendido
+                                                  ? 'Reactivar cuenta'
+                                                  : 'Suspender cuenta',
+                                              onPressed: () {
+                                                _confirmarCambioEstado(
+                                                  context,
+                                                  docId,
+                                                  nombre,
+                                                  suspender: !suspendido,
                                                 );
                                               },
                                             ),
@@ -1956,6 +2009,72 @@ class _UsersPageState extends State<UsersPage> {
               if (context.mounted) Navigator.pop(context);
             },
             child: const Text('Guardar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmarCambioEstado(
+    BuildContext context,
+    String docId,
+    String nombre, {
+    required bool suspender,
+  }) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: Text(suspender ? 'Suspender cuenta' : 'Reactivar cuenta'),
+        content: Text(
+          suspender
+              ? '$nombre no podrá iniciar sesión hasta que reactives su cuenta. Sus datos no se borran.'
+              : '$nombre podrá volver a iniciar sesión.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: suspender ? Colors.deepOrange : Colors.green,
+            ),
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              try {
+                await widget.service.cambiarEstadoCuenta(
+                  userId: docId,
+                  nombre: nombre,
+                  suspender: suspender,
+                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        suspender
+                            ? 'Cuenta de $nombre suspendida.'
+                            : 'Cuenta de $nombre reactivada.',
+                      ),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('No se pudo cambiar el estado: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text(
+              suspender ? 'Sí, suspender' : 'Sí, reactivar',
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

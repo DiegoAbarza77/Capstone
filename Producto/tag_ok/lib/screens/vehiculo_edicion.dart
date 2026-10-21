@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/vehiculo_model.dart';
+import '../utils/numero_chile.dart';
 import '../utils/patente_chile.dart';
 
 const Color _bgColor = Color(0xFF0F172A);
@@ -102,6 +103,46 @@ Future<bool> _editarVehiculo(
     }
     return false;
   }
+}
+
+/// true si el kilometraje nuevo es menor al que el vehículo ya tenía registrado
+/// (CU4): puede ser un error de tipeo, así que se pide confirmar antes de guardar.
+bool kilometrajeMenorAlPrevio(num? previo, num? nuevo) {
+  if (previo == null || nuevo == null) return false;
+  return nuevo < previo;
+}
+
+Future<bool> _confirmarKilometrajeMenor(BuildContext context, num previo, num nuevo) async {
+  final seguir = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: _navBgColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B)),
+          const SizedBox(width: 10),
+          Expanded(child: Text('Revisa el kilometraje', style: TextStyle(color: _textMain))),
+        ],
+      ),
+      content: Text(
+        'Ingresaste ${formatearMiles(nuevo.round())} km, pero el vehículo tenía '
+        '${formatearMiles(previo.round())} km. Un kilometraje menor no es habitual. ¿Está bien?',
+        style: TextStyle(color: _textMuted),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: Text('Corregir', style: TextStyle(color: _textMuted)),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('Guardar de todos modos', style: TextStyle(color: Color(0xFFF59E0B))),
+        ),
+      ],
+    ),
+  );
+  return seguir == true;
 }
 
 void mostrarFormularioEditarVehiculo(BuildContext context, Map<String, dynamic> data) {
@@ -334,6 +375,13 @@ void mostrarFormularioEditarVehiculo(BuildContext context, Map<String, dynamic> 
                   );
                   return;
                 }
+                final kmNuevo = double.tryParse(kilometrajeCtrl.text.trim());
+                final kmPrevio = (data['kilometraje'] as num?)?.toDouble();
+                if (kilometrajeMenorAlPrevio(kmPrevio, kmNuevo) &&
+                    !await _confirmarKilometrajeMenor(context, kmPrevio!, kmNuevo!)) {
+                  return;
+                }
+                if (!context.mounted) return;
                 bool success = await _editarVehiculo(
                   context,
                     data['id'],

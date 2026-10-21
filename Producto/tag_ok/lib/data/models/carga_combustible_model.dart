@@ -34,6 +34,10 @@ class CargaCombustibleModel {
   /// Si se llenó el estanque (o la batería): habilita calcular el rendimiento.
   final bool tanqueLleno;
 
+  /// Boleta de la carga, guardada en el bucket privado combustible_docs.
+  final String? documentoPath;
+  final String? documentoNombre;
+
   CargaCombustibleModel({
     required this.id,
     required this.vehiculoId,
@@ -50,6 +54,8 @@ class CargaCombustibleModel {
     this.aiCapturadoEn,
     this.archivoNombre,
     this.tanqueLleno = false,
+    this.documentoPath,
+    this.documentoNombre,
   });
 
   /// Alias más claro para el código nuevo: la columna se llama "litros" por
@@ -58,12 +64,19 @@ class CargaCombustibleModel {
 
   String get etiquetaCantidad => etiquetaUnidad(unidad);
 
+  bool get tieneDocumento => documentoPath != null && documentoPath!.isNotEmpty;
+
   factory CargaCombustibleModel.fromJson(Map<String, dynamic> row) {
+    // Solo importa el día. Se toma tal como viene (sin convertir de zona horaria)
+    // porque los registros antiguos se guardaron con la hora local escrita como si
+    // fuera UTC; convertirla movería esas cargas al día anterior.
+    final f = DateTime.parse(row['fecha']);
+
     return CargaCombustibleModel(
       id: row['id'] ?? '',
       vehiculoId: row['vehiculo_id'] ?? '',
       vehiculoPatente: row['vehiculo_patente'] ?? '',
-      fecha: DateTime.parse(row['fecha']),
+      fecha: DateTime(f.year, f.month, f.day),
       kilometraje: (row['kilometraje'] as num?)?.toDouble(),
       estacion: row['estacion'] ?? '',
       tipoCombustible: row['tipo_combustible'],
@@ -75,6 +88,8 @@ class CargaCombustibleModel {
       aiCapturadoEn: row['ai_capturado_en'] != null ? DateTime.parse(row['ai_capturado_en']) : null,
       archivoNombre: row['archivo_nombre'],
       tanqueLleno: row['tanque_lleno'] ?? false,
+      documentoPath: row['documento_path'],
+      documentoNombre: row['documento_nombre'],
     );
   }
 
@@ -82,7 +97,8 @@ class CargaCombustibleModel {
     return {
       'vehiculo_id': vehiculoId,
       'vehiculo_patente': vehiculoPatente,
-      'fecha': fecha.toIso8601String(),
+      // Medianoche UTC del día elegido: se lee siempre como ese mismo día.
+      'fecha': DateTime.utc(fecha.year, fecha.month, fecha.day).toIso8601String(),
       'kilometraje': kilometraje,
       'estacion': estacion.isEmpty ? null : estacion,
       'tipo_combustible': tipoCombustible,
@@ -94,6 +110,30 @@ class CargaCombustibleModel {
       'ai_capturado_en': aiCapturadoEn?.toIso8601String(),
       'archivo_nombre': archivoNombre,
       'tanque_lleno': tanqueLleno,
+      'documento_path': documentoPath,
+      'documento_nombre': documentoNombre,
     };
+  }
+
+  CargaCombustibleModel copyWith({String? id, String? documentoPath, String? documentoNombre}) {
+    return CargaCombustibleModel(
+      id: id ?? this.id,
+      vehiculoId: vehiculoId,
+      vehiculoPatente: vehiculoPatente,
+      fecha: fecha,
+      kilometraje: kilometraje,
+      estacion: estacion,
+      tipoCombustible: tipoCombustible,
+      litros: litros,
+      precioLitro: precioLitro,
+      total: total,
+      unidad: unidad,
+      origen: origen,
+      aiCapturadoEn: aiCapturadoEn,
+      archivoNombre: archivoNombre,
+      tanqueLleno: tanqueLleno,
+      documentoPath: documentoPath ?? this.documentoPath,
+      documentoNombre: documentoNombre ?? this.documentoNombre,
+    );
   }
 }

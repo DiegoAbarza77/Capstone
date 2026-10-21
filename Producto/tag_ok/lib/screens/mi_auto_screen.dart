@@ -1,19 +1,31 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../data/models/carga_combustible_model.dart';
 import '../data/models/documento_vehiculo_model.dart';
 import '../data/models/estacionamiento_model.dart';
+import '../data/models/trip_history.dart';
 import '../data/services/beneficios_service.dart';
+import '../data/services/cache_offline.dart';
+import '../data/services/combustible_service.dart';
+import '../data/services/history_service.dart';
 import '../data/services/estacionamiento_service.dart';
+import '../utils/dashboard_resumen.dart';
 import '../utils/estacionamiento_calculos.dart';
+import '../utils/numero_chile.dart';
 import '../data/models/mantencion_model.dart';
 import '../data/services/mantencion_service.dart';
 import '../data/services/vehiculo_documentos_service.dart';
 import '../utils/mantencion_calculos.dart';
 import 'beneficios_screen.dart';
+import 'combustible_form_screen.dart';
 import 'combustible_screen.dart';
 import 'documentos_vehiculo_screen.dart';
+import 'estacionamiento_form_screen.dart';
 import 'estacionamientos_screen.dart';
 import 'ficha_vehiculo_screen.dart';
+import 'mantencion_form_screen.dart';
 import 'mantencion_ui.dart';
 import 'mantenciones_screen.dart';
 import 'vehiculos_screen.dart';
@@ -47,12 +59,14 @@ class _MiAutoScreenState extends State<MiAutoScreen> {
     super.initState();
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null) {
-      _vehiculosStream = Supabase.instance.client
-          .from('vehiculos')
-          .stream(primaryKey: ['id']).eq('usuario_id', user.id);
-      _usuarioStream = Supabase.instance.client
-          .from('usuarios')
-          .stream(primaryKey: ['id']).eq('id', user.id);
+      _vehiculosStream = CacheOffline.filas(
+        'vehiculos',
+        Supabase.instance.client.from('vehiculos').stream(primaryKey: ['id']).eq('usuario_id', user.id),
+      );
+      _usuarioStream = CacheOffline.filas(
+        'usuario',
+        Supabase.instance.client.from('usuarios').stream(primaryKey: ['id']).eq('id', user.id),
+      );
     }
   }
 
@@ -249,6 +263,14 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
   late final Stream<List<MantencionProgramadaModel>> _programadasStream;
   late final Stream<List<EstacionamientoModel>> _estacionamientosStream;
 
+  // Datos de apoyo para los gastos del mes. Si alguno falla, su categoría
+  // queda en $0 y el resto del tablero sigue funcionando.
+  final List<StreamSubscription<dynamic>> _suscripciones = [];
+  List<CargaCombustibleModel> _cargas = const [];
+  List<MantencionModel> _mantenciones = const [];
+  List<TripHistory> _viajes = const [];
+  List<EstacionamientoModel> _estacionamientos = const [];
+
   /// Cantidad de beneficios disponibles; null mientras carga o si falló.
   int? _beneficiosDisponibles;
 
@@ -261,12 +283,33 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
     super.initState();
     _documentosStream = VehiculoDocumentosService().streamDocumentos(_vehiculoId);
     _programadasStream = MantencionService().streamProgramadas(_vehiculoId);
-    _estacionamientosStream = EstacionamientoService().streamPorVehiculo(_vehiculoId);
+    _estacionamientosStream = EstacionamientoService().streamPorVehiculo(_vehiculoId).asBroadcastStream();
+    _escuchar(CombustibleService().streamPorVehiculo(_vehiculoId), (d) => _cargas = d);
+    _escuchar(MantencionService().streamPorVehiculo(_vehiculoId), (d) => _mantenciones = d);
+    _escuchar(HistoryService().getTripHistory(), (d) => _viajes = d);
+    _escuchar(_estacionamientosStream, (d) => _estacionamientos = d);
     // Es solo un dato de apoyo para la tarjeta: si falla, la tarjeta sigue
     // funcionando y muestra el texto genérico.
     BeneficiosService().obtenerVigentes().then((lista) {
       if (mounted) setState(() => _beneficiosDisponibles = lista.length);
     }).catchError((_) {});
+  }
+
+  void _escuchar<T>(Stream<List<T>> flujo, void Function(List<T>) guardar) {
+    _suscripciones.add(flujo.listen(
+      (datos) {
+        if (mounted) setState(() => guardar(datos));
+      },
+      onError: (_) {},
+    ));
+  }
+
+  @override
+  void dispose() {
+    for (final s in _suscripciones) {
+      s.cancel();
+    }
+    super.dispose();
   }
 
   void _ir(Widget pantalla) {
@@ -332,6 +375,12 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
                       const SizedBox(height: 12),
                       _buildAlertas(avisos),
                     ],
+                    const SizedBox(height: 16),
+                    _buildTarjetas(documentos, [for (final (_, e) in programadas) e]),
+                    const SizedBox(height: 16),
+                    _buildGastosMes(),
+                    const SizedBox(height: 16),
+                    _buildAccionesRapidas(),
                     const SizedBox(height: 24),
                     const Text('Módulos', style: TextStyle(color: _textMuted, fontSize: 13)),
                     const SizedBox(height: 10),
@@ -343,6 +392,179 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildTarjetas(List<DocumentoVehiculoModel> documentos, List<EvaluacionProgramada> evaluaciones) {
+    final gastos = _gastosMes();
+    final mantencion = resumenProximaMantencion(evaluaciones);
+    final dias = diasProximoVencimiento(documentos);
+    final String textoVenc;
+    final bool vencUrgente;
+    if (dias == null) {
+      textoVenc = documentos.isEmpty ? 'Sin documentos' : 'Al día';
+      vencUrgente = false;
+    } else if (dias < 0) {
+      textoVenc = 'Vencido';
+      vencUrgente = true;
+    } else {
+      textoVenc = '$dias ${dias == 1 ? 'día' : 'días'}';
+      vencUrgente = dias <= 30;
+    }
+    final beneficios = _beneficiosDisponibles;
+
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: 1.7,
+      children: [
+        _TarjetaIndicador(
+          valor: formatoPesos(gastos.total),
+          etiqueta: 'Gasto movilidad este mes',
+          color: _primaryColor,
+        ),
+        _TarjetaIndicador(
+          valor: mantencion.texto,
+          etiqueta: 'Próxima mantención',
+          color: mantencion.urgente ? colorEstadoProgramada(EstadoProgramada.vencida) : const Color(0xFFF59E0B),
+          onTap: _abrirMantenciones,
+        ),
+        _TarjetaIndicador(
+          valor: textoVenc,
+          etiqueta: 'Próximo vencimiento',
+          color: vencUrgente ? colorEstadoVencimiento(EstadoVencimiento.vencido) : _accentColor,
+          onTap: () => _ir(DocumentosVehiculoScreen(vehiculoId: _vehiculoId, patente: _patente)),
+        ),
+        _TarjetaIndicador(
+          valor: beneficios == null ? '—' : '$beneficios',
+          etiqueta: 'Beneficios disponibles',
+          color: const Color(0xFFEC4899),
+          onTap: () => _ir(const BeneficiosScreen()),
+        ),
+      ],
+    );
+  }
+
+  GastosMes _gastosMes() => calcularGastosMes(
+        mes: DateTime.now(),
+        patente: _patente,
+        viajes: _viajes,
+        cargas: _cargas,
+        estacionamientos: _estacionamientos,
+        mantenciones: _mantenciones,
+      );
+
+  Widget _buildGastosMes() {
+    final g = _gastosMes();
+    final filas = [
+      ('TAG', g.tag, _primaryColor),
+      ('Combustible', g.combustible, _accentColor),
+      ('Estacionamientos', g.estacionamientos, _colorCronometro),
+      ('Mantenciones', g.mantenciones, const Color(0xFFF59E0B)),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _navBgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Gastos del mes', style: TextStyle(color: _textMain, fontSize: 15, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          for (final (nombre, monto, color) in filas)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: Text(nombre, style: const TextStyle(color: _textMuted, fontSize: 13))),
+                      Text(
+                        formatoPesos(monto),
+                        style: const TextStyle(color: _textMain, fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      SizedBox(
+                        width: 44,
+                        child: Text(
+                          '${(g.fraccion(monto) * 100).round()}%',
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(color: _textMuted, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: g.fraccion(monto),
+                      minHeight: 6,
+                      color: color,
+                      backgroundColor: Colors.white.withValues(alpha: 0.06),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccionesRapidas() {
+    Widget boton(IconData icono, String texto, VoidCallback onTap) => ActionChip(
+          avatar: Icon(icono, size: 18, color: Colors.white),
+          label: Text(texto),
+          onPressed: onTap,
+          backgroundColor: _navBgColor,
+          labelStyle: const TextStyle(color: _textMain, fontWeight: FontWeight.w600),
+          side: BorderSide(color: _primaryColor.withValues(alpha: 0.5)),
+        );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Acciones rápidas', style: TextStyle(color: _textMuted, fontSize: 13)),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            boton(
+              Icons.local_gas_station_outlined,
+              'Registrar combustible',
+              () => _ir(CombustibleFormScreen(
+                vehiculoId: _vehiculoId,
+                patente: _patente,
+                combustibleDelVehiculo: widget.vehiculo['tipo_combustible'] as String?,
+                kmActualVehiculo: _kmActual,
+              )),
+            ),
+            boton(
+              Icons.local_parking_outlined,
+              'Registrar estacionamiento',
+              () => _ir(EstacionamientoFormScreen(vehiculoId: _vehiculoId, patente: _patente)),
+            ),
+            boton(
+              Icons.build_outlined,
+              'Agregar mantención',
+              () => _ir(MantencionFormScreen(
+                vehiculoId: _vehiculoId,
+                patente: _patente,
+                kmActualVehiculo: _kmActual,
+                historial: _mantenciones,
+              )),
+            ),
+            boton(Icons.card_giftcard_outlined, 'Ver beneficios', () => _ir(const BeneficiosScreen())),
+          ],
+        ),
+      ],
     );
   }
 
@@ -590,6 +812,48 @@ class _Aviso {
     required this.abrir,
     this.informativo = false,
   });
+}
+
+class _TarjetaIndicador extends StatelessWidget {
+  final String valor;
+  final String etiqueta;
+  final Color color;
+  final VoidCallback? onTap;
+
+  const _TarjetaIndicador({required this.valor, required this.etiqueta, required this.color, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _navBgColor,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(valor, style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 4),
+              Text(etiqueta,
+                  maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _textMuted, fontSize: 12)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ModuloTile extends StatelessWidget {

@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/mantencion_model.dart';
 import 'notificaciones_vencimiento_service.dart';
 import 'vehiculo_service.dart';
+import 'cache_offline.dart';
 
 /// Resultado de guardar una mantención.
 class ResultadoGuardadoMantencion {
@@ -34,12 +35,14 @@ class MantencionService {
 
   /// La línea de tiempo: de la más reciente a la más antigua.
   Stream<List<MantencionModel>> streamPorVehiculo(String vehiculoId) {
-    return _client
-        .from('mantenciones')
-        .stream(primaryKey: ['id'])
-        .eq('vehiculo_id', vehiculoId)
-        .order('fecha', ascending: false)
-        .map((rows) => rows.map(MantencionModel.fromJson).toList());
+    return CacheOffline.filas(
+      'mantenciones:$vehiculoId',
+      _client
+          .from('mantenciones')
+          .stream(primaryKey: ['id'])
+          .eq('vehiculo_id', vehiculoId)
+          .order('fecha', ascending: false),
+    ).map((rows) => rows.map(MantencionModel.fromJson).toList());
   }
 
   /// Guarda una mantención nueva (si [mantencion] no tiene id) o actualiza una
@@ -140,11 +143,10 @@ class MantencionService {
   // ── Próxima mantención programada ───────────────────────────────────
 
   Stream<List<MantencionProgramadaModel>> streamProgramadas(String vehiculoId) {
-    return _client
-        .from('mantenciones_programadas')
-        .stream(primaryKey: ['id'])
-        .eq('vehiculo_id', vehiculoId)
-        .map((rows) => rows.map(MantencionProgramadaModel.fromJson).toList());
+    return CacheOffline.filas(
+      'mantenciones_programadas:$vehiculoId',
+      _client.from('mantenciones_programadas').stream(primaryKey: ['id']).eq('vehiculo_id', vehiculoId),
+    ).map((rows) => rows.map(MantencionProgramadaModel.fromJson).toList());
   }
 
   /// Guarda una programación nueva o actualiza una existente, y deja

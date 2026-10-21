@@ -199,6 +199,21 @@ class AdminSupabaseService {
     return _client.from('trips').stream(primaryKey: ['id']).order('date', ascending: false);
   }
 
+  /// Suspende o reactiva una cuenta (CU18) y deja el cambio en la bitácora. La
+  /// base de datos solo deja cambiar este campo a un administrador.
+  Future<void> cambiarEstadoCuenta({
+    required String userId,
+    required String nombre,
+    required bool suspender,
+  }) async {
+    await _client.from('usuarios').update({'estado': suspender ? 'suspendido' : 'activo'}).eq('id', userId);
+    await logAction(
+      action: suspender ? 'SUSPEND_USER' : 'REACTIVATE_USER',
+      target: nombre,
+      details: suspender ? 'Se suspendió la cuenta.' : 'Se reactivó la cuenta.',
+    );
+  }
+
   Future<void> logAction({
     required String action,
     required String target,
@@ -206,6 +221,7 @@ class AdminSupabaseService {
   }) async {
     final String adminEmail = _client.auth.currentUser?.email ?? 'admin_desconocido';
     await _client.from('auditoria').insert({
+      'admin_id': _client.auth.currentUser?.id,
       'admin_email': adminEmail,
       'action': action,
       'target': target,

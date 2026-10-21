@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/documento_vehiculo_model.dart';
+import 'cache_offline.dart';
 
 class VehiculoDocumentosService {
   final SupabaseClient _client = Supabase.instance.client;
@@ -7,11 +8,10 @@ class VehiculoDocumentosService {
   /// Emite siempre los 4 tipos de documento definidos, con datos vacíos
   /// para los que el usuario aún no ha registrado.
   Stream<List<DocumentoVehiculoModel>> streamDocumentos(String vehiculoId) {
-    return _client
-        .from('vehiculo_documentos')
-        .stream(primaryKey: ['id'])
-        .eq('vehiculo_id', vehiculoId)
-        .map((rows) {
+    return CacheOffline.filas(
+      'documentos:$vehiculoId',
+      _client.from('vehiculo_documentos').stream(primaryKey: ['id']).eq('vehiculo_id', vehiculoId),
+    ).map((rows) {
       final Map<String, Map<String, dynamic>> porTipo = {
         for (final row in rows) row['tipo'] as String: row,
       };
@@ -31,5 +31,10 @@ class VehiculoDocumentosService {
       },
       onConflict: 'vehiculo_id,tipo',
     );
+  }
+
+  /// Borra el documento de ese tipo del vehículo. Si no existía, no hace nada.
+  Future<void> eliminarDocumento(String vehiculoId, String tipo) async {
+    await _client.from('vehiculo_documentos').delete().eq('vehiculo_id', vehiculoId).eq('tipo', tipo);
   }
 }

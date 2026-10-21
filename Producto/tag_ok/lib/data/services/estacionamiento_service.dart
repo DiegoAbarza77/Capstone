@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/estacionamiento_model.dart';
+import 'cache_offline.dart';
 
 /// Ya hay un estacionamiento con el cronómetro corriendo para ese vehículo.
 class EstacionamientoEnCursoException implements Exception {
@@ -31,11 +32,10 @@ class EstacionamientoService {
   /// Todos los estacionamientos del vehículo, incluido el que está en curso.
   /// Quien lo use ordena y filtra (ver utils/estacionamiento_calculos.dart).
   Stream<List<EstacionamientoModel>> streamPorVehiculo(String vehiculoId) {
-    return _client
-        .from('estacionamientos')
-        .stream(primaryKey: ['id'])
-        .eq('vehiculo_id', vehiculoId)
-        .map((rows) => rows.map(EstacionamientoModel.fromJson).toList());
+    return CacheOffline.filas(
+      'estacionamientos:$vehiculoId',
+      _client.from('estacionamientos').stream(primaryKey: ['id']).eq('vehiculo_id', vehiculoId),
+    ).map((rows) => rows.map(EstacionamientoModel.fromJson).toList());
   }
 
   // ── Cronómetro ──────────────────────────────────────────────────────

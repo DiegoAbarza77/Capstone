@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../../data/services/cache_offline.dart';
 import '../../data/services/conexion_servidor_service.dart';
 
 /// Envuelve toda la app y muestra un aviso arriba cuando no hay conexión con
@@ -29,21 +31,26 @@ class BannerSinConexion extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              SizedBox(
+                            children: [
+                              const SizedBox(
                                 width: 14,
                                 height: 14,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                               ),
-                              SizedBox(width: 10),
+                              const SizedBox(width: 10),
                               Flexible(
-                                child: Text(
-                                  'Sin conexión con el servidor, reintentando…',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    decoration: TextDecoration.none,
+                                child: ValueListenableBuilder<DateTime?>(
+                                  valueListenable: CacheOffline.datosGuardadosDesde,
+                                  builder: (context, desde, _) => Text(
+                                    desde == null
+                                        ? 'Sin conexión con el servidor, reintentando…'
+                                        : 'Sin conexión · datos guardados al ${DateFormat('dd/MM HH:mm').format(desde)}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      decoration: TextDecoration.none,
+                                    ),
                                   ),
                                 ),
                               ),

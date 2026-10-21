@@ -12,7 +12,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:vibration/vibration.dart';
 import 'route_setup_screen.dart';
@@ -492,44 +491,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return math.sqrt(dx * dx + dy * dy);
   }
 
-  double _distanceToSegment(LatLng p, LatLng v, LatLng w) {
-    const double kLat = 111320.0;
-    final double kLon = 111320.0 * math.cos(v.latitude * math.pi / 180.0);
-    
-    final double dx = (w.longitude - v.longitude) * kLon;
-    final double dy = (w.latitude - v.latitude) * kLat;
-    final double l2 = dx * dx + dy * dy;
-    
-    if (l2 == 0) return _calculateDistance(p, v);
-    
-    // Dot product
-    double t = (((p.longitude - v.longitude) * kLon * dx) + ((p.latitude - v.latitude) * kLat * dy)) / l2;
-    t = math.max(0, math.min(1, t));
-    
-    // Projection
-    final double projX = v.longitude * kLon + t * dx;
-    final double projY = v.latitude * kLat + t * dy;
-    
-    final double pdx = (p.longitude * kLon) - projX;
-    final double pdy = (p.latitude * kLat) - projY;
-    
-    return math.sqrt(pdx * pdx + pdy * pdy);
-  }
-
-  double _distanceToPolyline(LatLng point, List<LatLng> polyline) {
-    if (polyline.isEmpty) return double.infinity;
-    if (polyline.length == 1) return _calculateDistance(point, polyline.first);
-    
-    double minDistance = double.infinity;
-    // Revisar primeros 50 segmentos de _remainingPolyline para eficiencia
-    int limit = math.min(polyline.length - 1, 50);
-    for (int i = 0; i < limit; i++) {
-      double d = _distanceToSegment(point, polyline[i], polyline[i+1]);
-      if (d < minDistance) minDistance = d;
-    }
-    return minDistance;
-  }
-
   void _updateRemainingPolyline(LatLng userLocation) {
     if (_remainingPolyline.isEmpty) return;
 
@@ -572,7 +533,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           // Feedback de vibración de alta intensidad para el conductor (3 ráfagas fuertes)
           Future.microtask(() async {
             try {
-              if (await Vibration.hasVibrator() ?? false) {
+              if (await Vibration.hasVibrator()) {
                 await Vibration.vibrate(
                   pattern: [0, 800, 200, 800, 200, 800],
                   intensities: [0, 255, 0, 255, 0, 255],
@@ -1236,7 +1197,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final historyService = HistoryService();
     final principal = await historyService.getPrincipalVehicleInfo();
     
-    if (!mounted) return;
+    if (!mounted || !context.mounted) return;
 
     if (principal == null) {
       // Si no tiene vehículos, iniciamos igual o avisamos
@@ -1325,7 +1286,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final historyService = HistoryService();
     final vehicles = await historyService.getUserVehicles();
 
-    if (!mounted) return;
+    if (!mounted || !context.mounted) return;
 
     showDialog(
       context: context,
@@ -1437,7 +1398,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!alreadyNotified && context.mounted) {
         // Marcamos como notificada antes de mostrar para evitar colisiones
         await historyService.markAlertAsNotified(threshold);
-        
+        if (!context.mounted) return;
+
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -1635,9 +1597,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Color progressColor = const Color(0xFF4F46E5); // Violeta
             if (progress >= 1.0) {
               progressColor = Colors.redAccent;
-            } else if (progress >= 0.9) progressColor = Colors.orangeAccent;
-            else if (progress >= 0.75) progressColor = Colors.yellowAccent;
-            else if (progress >= 0.5) progressColor = const Color(0xFF10B981);
+            } else if (progress >= 0.9) {
+              progressColor = Colors.orangeAccent;
+            } else if (progress >= 0.75) {
+              progressColor = Colors.yellowAccent;
+            } else if (progress >= 0.5) {
+              progressColor = const Color(0xFF10B981);
+            }
 
             return Column(
               mainAxisSize: MainAxisSize.min,

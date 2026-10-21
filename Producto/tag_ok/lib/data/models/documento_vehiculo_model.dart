@@ -95,6 +95,17 @@ class DocumentoVehiculoModel {
   }
 }
 
+/// Mensaje de error si las fechas no son coherentes (la emisión no puede ser
+/// posterior al vencimiento), o null si todo está bien. Si falta alguna de las
+/// dos fechas no hay nada que comparar.
+String? validarFechasDocumento(DateTime? emision, DateTime? vencimiento) {
+  if (emision == null || vencimiento == null) return null;
+  final e = DateTime(emision.year, emision.month, emision.day);
+  final v = DateTime(vencimiento.year, vencimiento.month, vencimiento.day);
+  if (e.isAfter(v)) return 'La fecha de emisión no puede ser posterior a la de vencimiento.';
+  return null;
+}
+
 /// Combina el estado de varios documentos en el peor caso (el más urgente).
 EstadoVencimiento peorEstado(List<EstadoVencimiento> estados) {
   if (estados.contains(EstadoVencimiento.vencido)) return EstadoVencimiento.vencido;

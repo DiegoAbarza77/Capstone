@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/cache_offline.dart';
 
 class AuthRepository {
   final SupabaseClient _client = Supabase.instance.client;
@@ -10,10 +11,34 @@ class AuthRepository {
 
   // Iniciar Sesión
   Future<AuthResponse> signInWithEmailAndPassword(String email, String password) async {
+    final AuthResponse respuesta;
     try {
-      return await _client.auth.signInWithPassword(email: email, password: password);
+      respuesta = await _client.auth.signInWithPassword(email: email, password: password);
     } catch (e) {
       throw _handleAuthException(e);
+    }
+    // Una cuenta suspendida por un administrador no puede entrar (CU18).
+    if (await cuentaSuspendida()) {
+      await _client.auth.signOut();
+      throw mensajeCuentaSuspendida;
+    }
+    return respuesta;
+  }
+
+  static const String mensajeCuentaSuspendida =
+      'Tu cuenta está suspendida. Contacta al administrador para reactivarla.';
+
+  /// true si el administrador suspendió la cuenta de la sesión actual. Si no se
+  /// puede consultar (sin red, o la columna aún no existe) se deja pasar: no se
+  /// bloquea a nadie por un fallo de conexión.
+  Future<bool> cuentaSuspendida() async {
+    final id = currentUser?.id;
+    if (id == null) return false;
+    try {
+      final fila = await _client.from('usuarios').select('estado').eq('id', id).maybeSingle();
+      return fila?['estado'] == 'suspendido';
+    } catch (_) {
+      return false;
     }
   }
 
@@ -43,6 +68,7 @@ class AuthRepository {
   // Cerrar Sesión
   Future<void> signOut() async {
     await _client.auth.signOut();
+    await CacheOffline.limpiar();
   }
 
   // Enviar correo de recuperación de contraseña
@@ -79,7 +105,7 @@ class AuthRepository {
     if (e is AuthException) {
       switch (e.code) {
         case 'invalid_credentials':
-          return 'El correo o la contraseña son incorrectos.';
+          return 'Credenciales incorrectas.';
         case 'user_already_exists':
         case 'email_exists':
           return 'El correo ya está registrado.';

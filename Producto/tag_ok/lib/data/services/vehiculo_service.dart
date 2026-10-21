@@ -30,8 +30,9 @@ class VehiculoService {
   ///    vehículo, e invisibles en la app),
   ///  - el vehículo en sí, que borra en cascada sus documentos, mantenciones,
   ///    mantenciones programadas y estacionamientos,
-  ///  - los archivos adjuntos de sus mantenciones y estacionamientos (el borrado
-  ///    en cascada solo elimina las filas, no los archivos de Storage),
+  ///  - los archivos adjuntos de sus mantenciones, estacionamientos y cargas de
+  ///    combustible (el borrado en cascada solo elimina las filas, no los archivos
+  ///    de Storage),
   ///  - la marca de "vehículo principal" si era este,
   ///  - los avisos de vencimiento y de mantención programados en el dispositivo.
   Future<void> eliminar({required String vehiculoId, required String patente}) async {
@@ -49,6 +50,10 @@ class VehiculoService {
         .eq('vehiculo_id', vehiculoId);
     final estacionamientos = await _client
         .from('estacionamientos')
+        .select('documento_path')
+        .eq('vehiculo_id', vehiculoId);
+    final cargas = await _client
+        .from('combustible_cargas')
         .select('documento_path')
         .eq('vehiculo_id', vehiculoId);
 
@@ -84,6 +89,18 @@ class VehiculoService {
         await _client.storage.from('estacionamiento_docs').remove(rutasEstacionamientos);
       } catch (e) {
         debugPrint('TAG_OK_VEHICULOS: no se pudieron borrar los comprobantes de estacionamientos: $e');
+      }
+    }
+
+    final rutasCombustible = [
+      for (final c in cargas)
+        if (c['documento_path'] != null) c['documento_path'] as String,
+    ];
+    if (rutasCombustible.isNotEmpty) {
+      try {
+        await _client.storage.from('combustible_docs').remove(rutasCombustible);
+      } catch (e) {
+        debugPrint('TAG_OK_VEHICULOS: no se pudieron borrar los comprobantes de combustible: $e');
       }
     }
 

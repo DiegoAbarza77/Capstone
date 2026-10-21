@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/trip_history.dart';
+import 'cache_offline.dart';
 
 class HistoryService {
   final SupabaseClient _client = Supabase.instance.client;
@@ -38,12 +39,10 @@ class HistoryService {
   }
 
   Stream<List<TripHistory>> getTripHistory() {
-    return _client
-        .from('trips')
-        .stream(primaryKey: ['id'])
-        .eq('usuario_id', _userId)
-        .order('date', ascending: false)
-        .map((rows) => rows.map((row) => TripHistory.fromJson(row)).toList());
+    return CacheOffline.filas(
+      'trips',
+      _client.from('trips').stream(primaryKey: ['id']).eq('usuario_id', _userId).order('date', ascending: false),
+    ).map((rows) => rows.map((row) => TripHistory.fromJson(row)).toList());
   }
 
   Future<Map<String, dynamic>?> getPrincipalVehicleInfo() async {

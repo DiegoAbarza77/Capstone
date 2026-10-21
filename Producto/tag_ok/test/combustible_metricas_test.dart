@@ -24,6 +24,8 @@ CargaCombustibleModel carga({
 }
 
 void main() {
+  pruebasFechaCarga();
+
   group('calcularRendimiento', () {
     test('con un solo llenado no hay rendimiento', () {
       expect(calcularRendimiento([carga(km: 1000, cantidad: 40, lleno: true)], unidad: 'litros'), isNull);
@@ -122,6 +124,31 @@ void main() {
       expect(unidadParaTipo('Bencina'), 'litros');
       expect(unidadParaTipo('Diésel'), 'litros');
       expect(unidadParaTipo(null), 'litros');
+    });
+  });
+}
+
+void pruebasFechaCarga() {
+  group('CargaCombustibleModel.fecha', () {
+    test('el día no cambia al guardar y volver a leer', () {
+      final original = carga(cantidad: 30, total: 36000, fecha: DateTime(2026, 3, 15));
+      final leida = CargaCombustibleModel.fromJson({...original.toJson(), 'id': 'z'});
+      expect(leida.fecha, DateTime(2026, 3, 15));
+    });
+
+    test('un registro antiguo guardado con hora local sin zona sigue siendo el mismo día', () {
+      final leida = CargaCombustibleModel.fromJson({
+        'id': 'a',
+        'fecha': '2026-03-15T21:30:00',
+        'litros': 30,
+        'total': 36000,
+      });
+      expect(leida.fecha, DateTime(2026, 3, 15));
+    });
+
+    test('también lee el formato con zona UTC de medianoche', () {
+      final leida = CargaCombustibleModel.fromJson({'id': 'a', 'fecha': '2026-03-15T00:00:00+00:00'});
+      expect(leida.fecha, DateTime(2026, 3, 15));
     });
   });
 }
