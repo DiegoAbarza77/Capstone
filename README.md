@@ -41,21 +41,20 @@
 
 ## 📊 Estado del proyecto
 
-Este README refleja el estado **real y verificado** del código, no solo el plan. Última verificación en vivo: **22 de septiembre de 2026**, contra un proyecto Supabase real.
+Este README refleja el estado del código. Los módulos de la Fase 2 están **implementados y cubiertos por pruebas automáticas**, pero la mayoría **aún no se ha recorrido en pantalla ni en un celular real** (GPS, cronómetro y recordatorios necesitan un teléfono). Última verificación en vivo contra Supabase: **22 de septiembre de 2026**. La base de datos va hasta la migración **0017**.
 
 | Módulo | Estado |
 | :----- | :----- |
 | 🔐 Backend, autenticación y seguridad (Supabase Auth + Postgres + RLS) | ✅ Migrado desde Firebase y verificado en vivo |
-| 🚗 Mi Vehículo (datos + documentos + vencimientos) | ✅ Implementado |
-| ⛽ Combustible (registro manual) | ✅ Implementado |
+| 🚗 Mi Vehículo (datos + documentos + vencimientos) | ✅ Implementado, documentos manual o con IA |
+| 🛠️ Mantenciones | ✅ Implementado (manual o con IA, historial, próxima mantención y recordatorios); falta probar los recordatorios en celular |
+| 🅿️ Estacionamientos + cronómetro | ✅ Implementado (manual o con IA, cronómetro, GPS y mapa); falta probar GPS y cronómetro en celular |
+| ⛽ Combustible y carga eléctrica | ✅ Implementado (registro manual o con IA, historial y rendimiento) |
+| 🎁 Beneficios (catálogo + backoffice) | ✅ Implementado (catálogo con filtros y código de canje, administración desde el panel) |
 | 🛣️ TAG, viajes y presupuesto (heredado de Fase 1) | ✅ Implementado |
-| 🤖 Registro Inteligente con IA — auditoría de boletas (PDF/CSV/XLSX **y foto**) | ✅ Implementado, con pantalla obligatoria de revisión y confirmación |
-| ⚙️ Panel de Administración (usuarios, pórticos, tarifas, reportes, auditoría, admins) | ✅ Implementado y probado en vivo |
-| 🛠️ Mantenciones | ⏳ Base de datos y RLS listas, interfaz pendiente |
-| 🅿️ Estacionamientos + cronómetro | ⏳ Base de datos y RLS listas, interfaz pendiente |
-| 🎁 Beneficios (catálogo + backoffice) | ⏳ Base de datos lista, interfaz pendiente |
-| 🤖 IA aplicada a documentos, mantenciones, estacionamientos y combustible | ⏳ Pendiente (hoy solo cubre la auditoría de boletas) |
-| 📊 Dashboard "Mi Auto" integrador | ⏳ Pendiente (depende de los módulos de gasto anteriores) |
+| 🤖 Registro Inteligente con IA | ✅ Cubre auditoría de boletas, documentos, mantenciones, estacionamientos y combustible, siempre con pantalla de revisión y confirmación |
+| ⚙️ Panel de Administración (usuarios, suspensión de cuentas, pórticos, tarifas, reportes, auditoría, admins, beneficios, métricas) | ✅ Implementado; beneficios y métricas sin recorrer en pantalla |
+| 📊 Dashboard "Mi Auto" integrador | ⚠️ Parcial: estado, alertas y acceso a los módulos; falta el resumen de gastos por categoría |
 
 ---
 
@@ -95,33 +94,29 @@ Base del sistema: control de viajes, vehículos, usuarios y pórticos.
 
 ### 🚗 Mi Vehículo ✅
 
-Ficha central del vehículo: patente, marca, modelo, año, categoría, tipo de combustible, kilometraje y alias.
+Ficha central del vehículo: patente (4 formatos chilenos), marca, modelo, año, categoría, tipo de combustible, kilometraje, alias y foto. Se pueden tener varios vehículos y eliminarlos.
 
-**Documentos** (✅ implementado, registro manual): Permiso de Circulación, Revisión Técnica, SOAP y Seguro Automotriz, cada uno con número, fechas, compañía y un estado calculado automáticamente — *Al día* / *Por vencer* / *Vencido*.
+**Documentos**: Permiso de Circulación, Revisión Técnica, SOAP y Seguro Automotriz, cada uno con número, fechas y compañía, registrados de forma manual o fotografiando el documento para que la IA precargue el formulario. Un semáforo calcula el estado — *Al día* / *Por vencer* / *Vencido*.
 
-> 🔜 Planificado: registrar un documento fotografiando el carné/póliza y dejando que la IA precargue el formulario (hoy solo existe el registro manual para este módulo).
+### 🛠️ Mantenciones ✅
 
-### 🛠️ Mantenciones ⏳
+Bitácora con fecha, kilometraje, taller, costo, descripción y boleta adjunta, registrada de forma manual o con IA, que además clasifica el tipo (preventiva, cambio de aceite, frenos, neumáticos, otra). Línea de tiempo de historial y próxima mantención programada por fecha, kilometraje o ambos, con recordatorios.
 
-*Base de datos y políticas de seguridad ya migradas; falta la pantalla.* Cuando se construya: bitácora con fecha, kilometraje, taller, costo y descripción; clasificación automática (preventiva, cambio de aceite, frenos, neumáticos, otra); próxima mantención por fecha o kilometraje con recordatorios.
+### 🅿️ Estacionamientos ✅
 
-### 🅿️ Estacionamientos ⏳
-
-*Base de datos y políticas de seguridad ya migradas; falta la pantalla.* Cuando se construya: registro manual (lugar, fecha, entrada/salida, costo), cronómetro de "iniciar/finalizar" para registrar duración sin comprobante, y guardado de la ubicación GPS para recordar dónde quedó el vehículo.
+Registro manual o desde la foto de un ticket (lugar, fecha, entrada/salida, duración y costo), cronómetro de "iniciar/finalizar" que sobrevive al cierre de la app, guardado de la ubicación GPS con mapa, historial y gasto del mes.
 
 ### ⛽ Combustible ✅
 
-Registro manual de cargas: fecha, kilometraje, estación, tipo de combustible (bencina, diésel, híbrido o eléctrico — preparado desde el inicio para electromovilidad), litros, precio por litro y total. Resumen de gasto y litros del mes por vehículo.
+Registro de cargas con registros parciales: fecha, kilometraje, estación, tipo de combustible (bencina, diésel, híbrido o eléctrico), litros o kWh, precio y total. Se puede cargar la boleta como foto para precarga con IA ("Carga detectada"). Historial por mes, gasto y rendimiento por vehículo, con edición y eliminación.
 
-> 🔜 Planificado: cargar la boleta de la bomba de bencina como foto para precarga automática vía IA.
+### 🎁 Beneficios ✅
 
-### 🎁 Beneficios ⏳
+Catálogo filtrable en la app por categoría, ubicación y vigencia, con detalle y código de canje. Se administra desde el panel (crear, editar, activar/desactivar, destacar y subir imagen).
 
-*Base de datos lista (categoría, imagen, ubicación, vigencia, condiciones, destacado); falta la interfaz.* Cuando se construya: catálogo filtrable en la app por categoría/ubicación/vigencia, y un backoffice para crear, editar y activar/desactivar beneficios.
+### 📊 Dashboard "Mi Auto" ⚠️
 
-### 📊 Dashboard "Mi Auto" ⏳
-
-Pantalla de entrada que concentrará gasto del mes por categoría (TAG, combustible, estacionamiento, mantención), próxima mantención, próximo vencimiento y beneficios disponibles. Depende de que los módulos de gasto anteriores existan primero.
+Pestaña de entrada con el vehículo elegido, su estado, alertas de documentos vencidos y mantenciones próximas, el estacionamiento en curso y acceso a los seis módulos. **Pendiente:** el resumen del gasto del mes por categoría (TAG, combustible, estacionamiento, mantención).
 
 ---
 
@@ -152,10 +147,10 @@ Foto / PDF / CSV / XLSX
 | Evidencia | Implementado en | Estado |
 | :-------- | :--------------- | :----- |
 | Boleta de peaje (PDF / CSV / XLSX / **foto**) | Auditoría | ✅ Con motor local determinístico + IA de respaldo, y pantalla de revisión obligatoria |
-| Permiso / RT / SOAP / Seguro | Mi Vehículo → Documentos | ⏳ Planificado |
-| Boleta / factura de taller | Mantenciones | ⏳ Planificado |
-| Boleta de combustible | Combustible | ⏳ Planificado |
-| Ticket de estacionamiento | Estacionamientos | ⏳ Planificado |
+| Permiso / RT / SOAP / Seguro | Mi Vehículo → Documentos | ✅ Implementado |
+| Boleta / factura de taller | Mantenciones | ✅ Implementado |
+| Boleta de combustible o carga eléctrica | Combustible | ✅ Implementado |
+| Ticket de estacionamiento | Estacionamientos | ✅ Implementado |
 
 La auditoría de boletas también incluye un **motor 100% local y gratuito** (sin IA) que lee de forma nativa los formatos oficiales de Autopista Central (CSV), y Costanera Norte / Vespucio Sur / Vespucio Norte (PDF), con la IA como respaldo cuando el formato no se reconoce — el usuario puede alternar entre ambos modos con un interruptor.
 
@@ -168,7 +163,9 @@ La auditoría de boletas también incluye un **motor 100% local y gratuito** (si
 Backoffice web para operar el negocio, verificado en vivo contra el mismo proyecto de Supabase que usan los clientes:
 
 * **Dashboard** — viajes recientes, distribución de costos por autopista, uso y distribución de cobros, transacciones y usuarios recientes.
-* **Usuarios** — consulta, edición de presupuesto/nombre, reseteo de contraseña, eliminación.
+* **Usuarios** — búsqueda por nombre o correo, edición de presupuesto/nombre, reseteo de contraseña, suspensión y reactivación de cuentas, eliminación.
+* **Beneficios y Alianzas** — crear, editar, activar, desactivar, destacar y subir imagen de los beneficios del catálogo.
+* **Métricas y Reportes** — usuarios activos, vehículos, documentos procesados por IA, gasto por categoría y crecimiento mensual, con filtro de fechas y solo datos agregados.
 * **Pórticos y Tarifas** — ABM en tiempo real de tarifa base/punta/saturación por pórtico.
 * **Reportes** — métricas agregadas y desglose de costos por concesionaria.
 * **Auditoría (bitácora)** — registro inmutable de cada acción administrativa, con quién, cuándo y qué cambió.
@@ -202,14 +199,14 @@ La migración de Firebase a Supabase no fue solo un cambio de proveedor — se a
 
 * [Flutter](https://flutter.dev/) y Dart (vienen juntos).
 * Git.
-* Una cuenta/proyecto en [Supabase](https://supabase.com/) (gratis, sin tarjeta) con todas las migraciones SQL de `Producto/supabase/migrations/` aplicadas en orden (0001 a 0010) y las 3 Edge Functions de `Producto/supabase/functions/` desplegadas.
+* Una cuenta/proyecto en [Supabase](https://supabase.com/) (gratis, sin tarjeta) con todas las migraciones SQL de `Producto/supabase/migrations/` aplicadas en orden (0001 a 0017) y las 3 Edge Functions de `Producto/supabase/functions/` desplegadas.
 * Credenciales de Mapbox y Gemini (opcionales para probar solo Auth/datos; requeridas para mapas e IA).
 
 ### Pasos
 
 ```bash
-git clone https://github.com/DiegoAbarza77/TagOK2.0.git
-cd TagOK2.0/Producto
+git clone https://github.com/DiegoAbarza77/Capstone.git
+cd Capstone/Producto
 ```
 
 Corre `setup.bat` (Windows) — instala las dependencias de ambas apps y te deja un menú para ejecutarlas. La primera vez genera `tag_ok/.env` y `admin/.env` **con una plantilla vacía que debes completar**:
@@ -271,12 +268,15 @@ TAG-OK2.1/
 │   ├── admin/                   # Panel de administración (Flutter)
 │   │
 │   ├── supabase/
-│   │   ├── migrations/          # Esquema SQL + RLS, numerado (0001 a 0010)
-│   │   └── functions/           # Edge Functions (create-admin, delete-user, gemini-proxy)
+│   │   ├── migrations/          # Esquema SQL + RLS, numerado (0001 a 0017)
+│   │   ├── functions/           # Edge Functions (create-admin, delete-user, gemini-proxy)
+│   │   └── seeds/               # Datos de ejemplo (beneficios)
 │   │
-│   └── Base de datos/           # Documentación y exportación de la BD de la v1 (Firebase, histórico)
+│   └── Base de datos/           # Modelo lógico y relacional, script completo (Supabase) y exportación histórica de la v1 (Firebase)
 │
 ├── INSTALACION.md               # Guía de instalación paso a paso
+├── GUIA_APK.md                  # Generar e instalar la app en un Android
+├── RESUMEN_FASE_2.md            # Resumen del alcance y estado de la Fase 2
 └── README.md
 ```
 

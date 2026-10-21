@@ -31,8 +31,8 @@ Todo lo que necesites debe aparecer con ✓. Para el modo web basta con que Flut
 ## 2. Descargar el proyecto
 
 ```bash
-git clone https://github.com/DiegoAbarza77/TagOK2.0.git
-cd TagOK2.0/Producto
+git clone https://github.com/DiegoAbarza77/Capstone.git
+cd Capstone/Producto
 ```
 
 La estructura importante es esta:
@@ -42,7 +42,7 @@ Producto/
 ├── tag_ok/      → app del conductor (Flutter)
 ├── admin/       → panel de administración (Flutter web)
 ├── supabase/
-│   ├── migrations/   → scripts SQL de la base de datos (0001 a 0010)
+│   ├── migrations/   → scripts SQL de la base de datos (0001 a 0017)
 │   └── functions/    → Edge Functions (gemini-proxy, create-admin, delete-user)
 └── setup.bat    → instalador de dependencias
 ```
@@ -62,7 +62,7 @@ Producto/
 
 ### 3.1 Aplicar las migraciones
 
-Las migraciones crean las tablas, las reglas de seguridad (RLS), los buckets de fotos y cargan los pórticos iniciales. Deben aplicarse **en orden, de la 0001 a la 0010**.
+Las migraciones crean las tablas, las reglas de seguridad (RLS), los buckets de fotos y cargan los pórticos iniciales. Deben aplicarse **en orden, de la 0001 a la 0017**.
 
 **Opción A, con la CLI (recomendada):**
 
