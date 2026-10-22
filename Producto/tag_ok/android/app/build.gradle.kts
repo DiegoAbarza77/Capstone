@@ -8,7 +8,7 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Llave de firma propia (ver GUIA_APK.md). key.properties y el .jks nunca se
+// Llave de firma propia (ver INSTALACION.md, sección 10). key.properties y el .jks nunca se
 // suben a git. Si no existe, el build de release cae a la llave de depuración
 // para que compilar siga funcionando, pero esa APK no sirve para repartir:
 // cada PC genera una llave de depuración distinta y Android rechazaría la
