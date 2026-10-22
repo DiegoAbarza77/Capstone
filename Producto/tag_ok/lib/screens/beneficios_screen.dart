@@ -30,6 +30,31 @@ IconData iconoCategoriaBeneficio(String? categoria) {
   }
 }
 
+/// Color propio de cada categoría: se usa en las tarjetas sin imagen, en las
+/// etiquetas y en el detalle, para reconocer el tipo de beneficio de un vistazo.
+Color colorCategoriaBeneficio(String? categoria) {
+  switch (categoria) {
+    case 'combustible':
+      return const Color(0xFFF97316);
+    case 'talleres':
+      return const Color(0xFF3B82F6);
+    case 'mantenciones':
+      return const Color(0xFF14B8A6);
+    case 'estacionamiento':
+      return const Color(0xFF6366F1);
+    case 'lavado':
+      return const Color(0xFF0EA5E9);
+    case 'neumaticos':
+      return const Color(0xFFEAB308);
+    case 'seguros':
+      return const Color(0xFF10B981);
+    case 'accesorios':
+      return const Color(0xFFEC4899);
+    default:
+      return kMantIA;
+  }
+}
+
 /// Catálogo de beneficios (CU15): descuentos y alianzas con comercios, con
 /// filtros por categoría, ubicación y vigencia, y el detalle de cómo canjear cada
 /// uno.
@@ -189,12 +214,17 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
 
     final lista = aplicarFiltros(todos, _filtros);
     final categorias = categoriasConBeneficios(todos);
+    // Los destacados se muestran arriba solo cuando no hay filtros: con filtros el
+    // usuario busca algo concreto y ve directamente los resultados.
+    final destacados = _filtros.hayFiltros ? const <BeneficioModel>[] : todos.where((b) => b.destacado).toList();
 
     return RefreshIndicator(
       onRefresh: _refrescar,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
+          _buildEncabezado(todos.length),
+          const SizedBox(height: 16),
           SizedBox(
             height: 44,
             child: ListView.separated(
@@ -204,15 +234,20 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
               itemBuilder: (context, i) {
                 final id = categorias[i];
                 final activa = _filtros.categorias.contains(id);
+                final color = colorCategoriaBeneficio(id);
                 return FilterChip(
-                  avatar: Icon(iconoCategoriaBeneficio(id), size: 16, color: activa ? Colors.white : kMantTextoSuave),
+                  avatar: Icon(iconoCategoriaBeneficio(id), size: 16, color: activa ? Colors.white : color),
                   label: Text(kCategoriasBeneficio[id]!),
                   selected: activa,
                   showCheckmark: false,
-                  selectedColor: kMantPrimario,
+                  selectedColor: color,
                   backgroundColor: kMantTarjeta,
-                  labelStyle: TextStyle(color: activa ? Colors.white : kMantTextoSuave, fontSize: 13),
-                  side: BorderSide(color: activa ? kMantPrimario : Colors.white.withValues(alpha: 0.08)),
+                  labelStyle: TextStyle(
+                    color: activa ? Colors.white : kMantTexto,
+                    fontSize: 13,
+                    fontWeight: activa ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  side: BorderSide(color: activa ? color : Colors.white.withValues(alpha: 0.08)),
                   onSelected: (v) {
                     final nuevas = {..._filtros.categorias};
                     v ? nuevas.add(id) : nuevas.remove(id);
@@ -221,6 +256,28 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
                 );
               },
             ),
+          ),
+          if (destacados.isNotEmpty) ...[
+            const SizedBox(height: 22),
+            _buildTituloSeccion('Destacados', icono: Icons.star_rounded, color: _kDestacado),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 190,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: destacados.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (context, i) => _TarjetaDestacada(
+                  beneficio: destacados[i],
+                  onTap: () => _mostrarDetalle(destacados[i]),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 22),
+          _buildTituloSeccion(
+            _filtros.hayFiltros ? 'Resultados' : 'Todos los beneficios',
+            detalle: '${lista.length}',
           ),
           const SizedBox(height: 12),
           if (lista.isEmpty)
@@ -232,10 +289,73 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
     );
   }
 
+  /// Encabezado con un resumen del catálogo.
+  Widget _buildEncabezado(int total) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [kMantPrimario, Color.lerp(kMantPrimario, kMantIA, 0.7)!],
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), shape: BoxShape.circle),
+            child: const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 26),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Beneficios para ti',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  total == 1 ? '1 beneficio disponible con comercios aliados' : '$total beneficios disponibles con comercios aliados',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTituloSeccion(String titulo, {IconData? icono, Color color = kMantPrimario, String? detalle}) {
+    return Row(
+      children: [
+        if (icono != null) ...[
+          Icon(icono, size: 20, color: color),
+          const SizedBox(width: 6),
+        ] else ...[
+          Container(width: 4, height: 18, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 8),
+        ],
+        Text(titulo, style: const TextStyle(color: kMantTexto, fontSize: 17, fontWeight: FontWeight.bold)),
+        const Spacer(),
+        if (detalle != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(color: kMantTarjeta, borderRadius: BorderRadius.circular(20)),
+            child: Text(detalle, style: const TextStyle(color: kMantTextoSuave, fontSize: 12, fontWeight: FontWeight.w600)),
+          ),
+      ],
+    );
+  }
+
   /// E1: ningún beneficio coincide con los filtros.
   Widget _buildSinResultados() {
     return Container(
-      margin: const EdgeInsets.only(top: 24),
+      margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: kMantTarjeta,
@@ -268,82 +388,223 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
     );
   }
 
+  /// Tarjeta de la lista: miniatura a la izquierda y los datos a la derecha.
   Widget _buildTarjeta(BeneficioModel b) {
+    final color = colorCategoriaBeneficio(b.categoria);
     final dias = diasParaVencer(b);
     final porVencer = dias != null && dias <= 7;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: kMantTarjeta,
-        borderRadius: BorderRadius.circular(18),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => _mostrarDetalle(b),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                children: [
-                  _ImagenBeneficio(beneficio: b, altura: 150),
-                  if (b.destacado)
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(color: _kDestacado, borderRadius: BorderRadius.circular(20)),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.star, size: 14, color: kMantFondo),
-                            SizedBox(width: 4),
-                            Text('Destacado', style: TextStyle(color: kMantFondo, fontSize: 12, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: _ImagenBeneficio(beneficio: b, altura: 92, ancho: 92, iconoGrande: false),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              b.comercio.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6),
+                            ),
+                          ),
+                          if (b.destacado) const Icon(Icons.star_rounded, size: 16, color: _kDestacado),
+                        ],
                       ),
-                    ),
-                ],
+                      const SizedBox(height: 4),
+                      Text(
+                        b.titulo,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: kMantTexto, fontSize: 16, fontWeight: FontWeight.bold, height: 1.25),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _Pildora(
+                            icono: iconoCategoriaBeneficio(b.categoria),
+                            texto: etiquetaCategoriaBeneficio(b.categoria),
+                            color: color,
+                          ),
+                          _Pildora(
+                            icono: Icons.schedule,
+                            texto: textoVigencia(b),
+                            color: porVencer ? kMantAdvertencia : kMantTextoSuave,
+                            resaltada: porVencer,
+                          ),
+                          if (b.ubicacion != null)
+                            _Pildora(icono: Icons.place_outlined, texto: b.ubicacion!, color: kMantTextoSuave),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.only(left: 4, top: 30),
+                  child: Icon(Icons.chevron_right_rounded, color: kMantTextoSuave),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Etiqueta pequeña con ícono y texto (categoría, vigencia, ubicación).
+class _Pildora extends StatelessWidget {
+  final IconData icono;
+  final String texto;
+  final Color color;
+  final bool resaltada;
+
+  const _Pildora({required this.icono, required this.texto, required this.color, this.resaltada = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: resaltada ? 0.2 : 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icono, size: 12, color: color),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              texto,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: color, fontSize: 11, fontWeight: resaltada ? FontWeight.w700 : FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tarjeta grande de la franja "Destacados": imagen a todo el fondo con el título
+/// encima.
+class _TarjetaDestacada extends StatelessWidget {
+  final BeneficioModel beneficio;
+  final VoidCallback onTap;
+
+  const _TarjetaDestacada({required this.beneficio, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = beneficio;
+    final color = colorCategoriaBeneficio(b.categoria);
+    final dias = diasParaVencer(b);
+    final porVencer = dias != null && dias <= 7;
+
+    return SizedBox(
+      width: 280,
+      child: Material(
+        color: kMantTarjeta,
+        borderRadius: BorderRadius.circular(22),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _ImagenBeneficio(beneficio: b),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x00000000), Color(0xCC000000)],
+                    stops: [0.3, 1],
+                  ),
+                ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(14),
+              Positioned(
+                top: 12,
+                left: 12,
+                child: _Pildora(
+                  icono: iconoCategoriaBeneficio(b.categoria),
+                  texto: etiquetaCategoriaBeneficio(b.categoria),
+                  color: Colors.white,
+                ),
+              ),
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(color: _kDestacado, shape: BoxShape.circle),
+                  child: const Icon(Icons.star_rounded, size: 16, color: kMantFondo),
+                ),
+              ),
+              Positioned(
+                left: 14,
+                right: 14,
+                bottom: 14,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(b.titulo, style: const TextStyle(color: kMantTexto, fontSize: 17, fontWeight: FontWeight.bold)),
+                    Text(
+                      b.comercio,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(height: 2),
-                    Text(b.comercio, style: const TextStyle(color: kMantTextoSuave, fontSize: 14)),
-                    const SizedBox(height: 10),
+                    Text(
+                      b.titulo,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, height: 1.2),
+                    ),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: kMantPrimario.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(iconoCategoriaBeneficio(b.categoria), size: 14, color: kMantPrimario),
-                              const SizedBox(width: 4),
-                              Text(
-                                etiquetaCategoriaBeneficio(b.categoria),
-                                style: const TextStyle(color: kMantPrimario, fontSize: 12, fontWeight: FontWeight.w600),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Spacer(),
-                        Icon(Icons.schedule, size: 14, color: porVencer ? kMantAdvertencia : kMantTextoSuave),
+                        Icon(Icons.schedule, size: 13, color: porVencer ? kMantAdvertencia : Colors.white70),
                         const SizedBox(width: 4),
                         Text(
                           textoVigencia(b),
                           style: TextStyle(
-                            color: porVencer ? kMantAdvertencia : kMantTextoSuave,
+                            color: porVencer ? kMantAdvertencia : Colors.white70,
                             fontSize: 12,
-                            fontWeight: porVencer ? FontWeight.w600 : FontWeight.normal,
+                            fontWeight: porVencer ? FontWeight.w700 : FontWeight.normal,
                           ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(20)),
+                          child: const Text('Ver', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -358,21 +619,40 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
   }
 }
 
-/// Imagen del beneficio, o un bloque con el ícono de su categoría si no tiene
-/// imagen o no se pudo cargar.
+/// Imagen del beneficio, o un degradado con el color e ícono de su categoría si no
+/// tiene imagen o no se pudo cargar. Sin [altura] ni [ancho] ocupa todo el espacio
+/// disponible.
 class _ImagenBeneficio extends StatelessWidget {
   final BeneficioModel beneficio;
-  final double altura;
+  final double? altura;
+  final double? ancho;
+  final bool iconoGrande;
 
-  const _ImagenBeneficio({required this.beneficio, required this.altura});
+  const _ImagenBeneficio({required this.beneficio, this.altura, this.ancho, this.iconoGrande = true});
 
   @override
   Widget build(BuildContext context) {
+    final color = colorCategoriaBeneficio(beneficio.categoria);
+    final icono = iconoCategoriaBeneficio(beneficio.categoria);
+
     final respaldo = Container(
       height: altura,
-      width: double.infinity,
-      color: kMantPrimario.withValues(alpha: 0.12),
-      child: Icon(iconoCategoriaBeneficio(beneficio.categoria), size: 56, color: kMantPrimario.withValues(alpha: 0.6)),
+      width: ancho ?? double.infinity,
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color, Color.lerp(color, kMantFondo, 0.65)!],
+        ),
+      ),
+      child: iconoGrande
+          ? Stack(
+              children: [
+                Positioned(right: -14, bottom: -14, child: Icon(icono, size: 130, color: Colors.white.withValues(alpha: 0.16))),
+              ],
+            )
+          : Center(child: Icon(icono, size: 36, color: Colors.white.withValues(alpha: 0.95))),
     );
 
     final url = beneficio.imagenUrl;
@@ -380,10 +660,10 @@ class _ImagenBeneficio extends StatelessWidget {
     return Image.network(
       url,
       height: altura,
-      width: double.infinity,
+      width: ancho ?? double.infinity,
       fit: BoxFit.cover,
       errorBuilder: (_, _, _) => respaldo,
-      loadingBuilder: (context, child, progreso) => progreso == null ? child : SizedBox(height: altura, child: respaldo),
+      loadingBuilder: (context, child, progreso) => progreso == null ? child : respaldo,
     );
   }
 }
@@ -513,20 +793,36 @@ class _DetalleBeneficio extends StatelessWidget {
 
   const _DetalleBeneficio({required this.beneficio});
 
+  Future<void> _copiar(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: beneficio.codigoCanje!));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Copiado'), behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final b = beneficio;
+    final color = colorCategoriaBeneficio(b.categoria);
     final dias = diasParaVencer(b);
     final porVencer = dias != null && dias <= 7;
 
-    Widget bloque(String titulo, String texto) => Padding(
-          padding: const EdgeInsets.only(top: 18),
+    Widget bloque(IconData icono, String titulo, String texto) => Padding(
+          padding: const EdgeInsets.only(top: 22),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(titulo, style: const TextStyle(color: kMantTextoSuave, fontSize: 13)),
-              const SizedBox(height: 6),
-              Text(texto, style: const TextStyle(color: kMantTexto, fontSize: 14, height: 1.4)),
+              Row(
+                children: [
+                  Icon(icono, size: 18, color: kMantTextoSuave),
+                  const SizedBox(width: 8),
+                  Text(titulo, style: const TextStyle(color: kMantTexto, fontSize: 15, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(texto, style: const TextStyle(color: kMantTextoSuave, fontSize: 14, height: 1.5)),
             ],
           ),
         );
@@ -538,85 +834,149 @@ class _DetalleBeneficio extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              child: _ImagenBeneficio(beneficio: b, altura: 170),
+              child: SizedBox(
+                height: 210,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _ImagenBeneficio(beneficio: b),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0x00000000), Color(0xD9000000)],
+                          stops: [0.25, 1],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 10,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(color: Colors.white54, borderRadius: BorderRadius.circular(2)),
+                        ),
+                      ),
+                    ),
+                    if (b.destacado)
+                      Positioned(
+                        top: 24,
+                        right: 16,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(color: _kDestacado, borderRadius: BorderRadius.circular(20)),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.star_rounded, size: 14, color: kMantFondo),
+                              SizedBox(width: 4),
+                              Text('Destacado', style: TextStyle(color: kMantFondo, fontSize: 12, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      left: 20,
+                      right: 20,
+                      bottom: 16,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            b.comercio,
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            b.titulo,
+                            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, height: 1.15),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(b.titulo, style: const TextStyle(color: kMantTexto, fontSize: 22, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(b.comercio, style: const TextStyle(color: kMantTextoSuave, fontSize: 15)),
-                  const SizedBox(height: 14),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      Chip(
-                        avatar: Icon(iconoCategoriaBeneficio(b.categoria), size: 16, color: kMantPrimario),
-                        label: Text(etiquetaCategoriaBeneficio(b.categoria)),
-                        backgroundColor: kMantPrimario.withValues(alpha: 0.15),
-                        labelStyle: const TextStyle(color: kMantPrimario, fontSize: 12),
-                        side: BorderSide.none,
+                      _Pildora(icono: iconoCategoriaBeneficio(b.categoria), texto: etiquetaCategoriaBeneficio(b.categoria), color: color),
+                      _Pildora(
+                        icono: Icons.schedule,
+                        texto: textoVigencia(b),
+                        color: porVencer ? kMantAdvertencia : kMantTextoSuave,
+                        resaltada: porVencer,
                       ),
-                      Chip(
-                        avatar: Icon(Icons.schedule, size: 16, color: porVencer ? kMantAdvertencia : kMantTextoSuave),
-                        label: Text(textoVigencia(b)),
-                        backgroundColor: kMantFondo,
-                        labelStyle: TextStyle(color: porVencer ? kMantAdvertencia : kMantTextoSuave, fontSize: 12),
-                        side: BorderSide.none,
-                      ),
-                      if (b.ubicacion != null)
-                        Chip(
-                          avatar: const Icon(Icons.place_outlined, size: 16, color: kMantTextoSuave),
-                          label: Text(b.ubicacion!),
-                          backgroundColor: kMantFondo,
-                          labelStyle: const TextStyle(color: kMantTextoSuave, fontSize: 12),
-                          side: BorderSide.none,
-                        ),
+                      if (b.ubicacion != null) _Pildora(icono: Icons.place_outlined, texto: b.ubicacion!, color: kMantTextoSuave),
                     ],
                   ),
-                  if (b.descripcion != null) bloque('Descripción', b.descripcion!),
-                  if (b.condiciones != null) bloque('Condiciones de uso', b.condiciones!),
                   if (b.codigoCanje != null) ...[
-                    const SizedBox(height: 18),
-                    const Text('Cómo canjearlo', style: TextStyle(color: kMantTextoSuave, fontSize: 13)),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 22),
                     Container(
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: kMantOk.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: kMantOk.withValues(alpha: 0.4)),
+                        borderRadius: BorderRadius.circular(18),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [color.withValues(alpha: 0.22), color.withValues(alpha: 0.06)],
+                        ),
+                        border: Border.all(color: color.withValues(alpha: 0.5)),
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.confirmation_number_outlined, color: kMantOk),
-                          const SizedBox(width: 12),
-                          Expanded(
+                          Row(
+                            children: [
+                              Icon(Icons.confirmation_number_outlined, size: 18, color: color),
+                              const SizedBox(width: 8),
+                              const Text('Cómo canjearlo', style: TextStyle(color: kMantTexto, fontSize: 14, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            decoration: BoxDecoration(color: kMantFondo, borderRadius: BorderRadius.circular(12)),
                             child: SelectableText(
                               b.codigoCanje!,
-                              style: const TextStyle(color: kMantTexto, fontSize: 16, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: kMantTexto, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 1.5),
                             ),
                           ),
-                          TextButton.icon(
-                            onPressed: () async {
-                              await Clipboard.setData(ClipboardData(text: b.codigoCanje!));
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Copiado'), behavior: SnackBarBehavior.floating),
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.copy, size: 16),
-                            label: const Text('Copiar'),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: color,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () => _copiar(context),
+                              icon: const Icon(Icons.copy_rounded, size: 18, color: Colors.white),
+                              label: const Text('Copiar código', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ],
-                  const SizedBox(height: 20),
+                  if (b.descripcion != null) bloque(Icons.info_outline_rounded, 'Descripción', b.descripcion!),
+                  if (b.condiciones != null) bloque(Icons.rule_rounded, 'Condiciones de uso', b.condiciones!),
+                  const SizedBox(height: 22),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
@@ -627,7 +987,7 @@ class _DetalleBeneficio extends StatelessWidget {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Volver'),
+                      child: const Text('Cerrar'),
                     ),
                   ),
                 ],
