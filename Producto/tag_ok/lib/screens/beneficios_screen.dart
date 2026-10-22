@@ -223,7 +223,7 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
-          _buildEncabezado(todos.length),
+          //_buildEncabezado(todos.length),
           const SizedBox(height: 16),
           SizedBox(
             height: 44,
@@ -290,7 +290,7 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
   }
 
   /// Encabezado con un resumen del catálogo.
-  Widget _buildEncabezado(int total) {
+  /*Widget _buildEncabezado(int total) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -329,7 +329,7 @@ class _BeneficiosScreenState extends State<BeneficiosScreen> {
       ),
     );
   }
-
+*/
   Widget _buildTituloSeccion(String titulo, {IconData? icono, Color color = kMantPrimario, String? detalle}) {
     return Row(
       children: [
