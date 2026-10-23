@@ -5,6 +5,7 @@ import '../data/models/documento_vehiculo_model.dart';
 import '../data/services/vehiculo_documentos_service.dart';
 import '../data/services/vehiculo_service.dart';
 import 'combustible_screen.dart';
+import 'documento_detalle_screen.dart';
 import 'documentos_vehiculo_screen.dart';
 import 'estacionamientos_screen.dart';
 import 'mantenciones_screen.dart';
@@ -16,7 +17,6 @@ const Color _navBgColor = Color(0xFF1E293B);
 const Color _textMuted = Color(0xFF94A3B8);
 const Color _textMain = Color(0xFFF8FAFC);
 const Color _accentColor = Color(0xFF10B981);
-const Color _iaColor = Color(0xFF8B5CF6);
 
 /// Color asociado a cada estado de vencimiento (verde, ámbar, rojo, gris).
 Color colorEstadoVencimiento(EstadoVencimiento estado) {
@@ -213,8 +213,6 @@ class _FichaVehiculoScreenState extends State<FichaVehiculoScreen> {
               )
             else
               ...documentos.map((doc) => _buildDocumento(context, doc, patente)),
-            const SizedBox(height: 4),
-            _buildBloqueIA(context, patente),
             const SizedBox(height: 20),
             _buildAccesos(context, patente),
             const SizedBox(height: 12),
@@ -351,10 +349,10 @@ class _FichaVehiculoScreenState extends State<FichaVehiculoScreen> {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => DocumentosVehiculoScreen(
+            builder: (_) => DocumentoDetalleScreen(
               vehiculoId: widget.vehiculoId,
               patente: patente,
-              tipoInicial: doc.tipo,
+              tipo: doc.tipo,
             ),
           ),
         ),
@@ -377,52 +375,6 @@ class _FichaVehiculoScreenState extends State<FichaVehiculoScreen> {
               const Icon(Icons.chevron_right, color: _textMuted, size: 18),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBloqueIA(BuildContext context, String patente) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DocumentosVehiculoScreen(
-            vehiculoId: widget.vehiculoId,
-            patente: patente,
-            iniciarConIA: true,
-          ),
-        ),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: _iaColor.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _iaColor.withValues(alpha: 0.4)),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.auto_awesome, color: _iaColor, size: 22),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Agregar documento con IA',
-                    style: TextStyle(color: _iaColor, fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Fotografiar → revisar → guardar',
-                    style: TextStyle(color: _textMuted, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );
