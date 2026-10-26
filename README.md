@@ -21,10 +21,13 @@
 * [Fase 2 — Asistente inteligente](#fase-2)
 * [Registro Inteligente con IA](#registro-inteligente)
 * [Panel de Administración](#panel-admin)
+* [Casos de uso y avance](#casos-de-uso)
 * [Arquitectura y Seguridad](#arquitectura-seguridad)
+* [Calidad y pruebas](#calidad)
 * [Instalación y Ejecución](#instalacion) (guía detallada en [INSTALACION.md](INSTALACION.md))
 * [Stack Tecnológico](#stack)
 * [Estructura del Proyecto](#estructura)
+* [Pendientes](#pendientes)
 * [Objetivo](#objetivo)
 
 ---
@@ -41,7 +44,7 @@
 
 ## Estado del proyecto
 
-Este README refleja el estado del código. Los módulos de la Fase 2 están **implementados y cubiertos por pruebas automáticas**, pero la mayoría **aún no se ha recorrido en pantalla ni en un celular real** (GPS, cronómetro y recordatorios necesitan un teléfono). Última verificación en vivo contra Supabase: **22 de septiembre de 2026**. La base de datos va hasta la migración **0017**.
+Este README refleja el estado del código y de las pruebas, actualizado el **21 de octubre de 2026**. Los módulos de la Fase 2 están **implementados y cubiertos por pruebas automáticas**. Se recorrieron en pantalla, en la versión web con un usuario de prueba, Mi Auto, Combustible, Estacionamientos, Mantenciones y Beneficios, y en el panel, Beneficios, Métricas y el listado de Usuarios. **Falta probar en un celular real** el GPS, el cronómetro y los recordatorios. La base de datos va hasta la migración **0017**. Los porcentajes de avance son estimaciones.
 
 | Módulo | Estado |
 | :----- | :----- |
@@ -53,8 +56,8 @@ Este README refleja el estado del código. Los módulos de la Fase 2 están **im
 | Beneficios (catálogo + backoffice) | Implementado (catálogo con filtros y código de canje, administración desde el panel) |
 | TAG, viajes y presupuesto (heredado de Fase 1) | Implementado |
 | Registro Inteligente con IA | Implementado: cubre auditoría de boletas, documentos, mantenciones, estacionamientos y combustible, siempre con pantalla de revisión y confirmación |
-| Panel de Administración (usuarios, suspensión de cuentas, pórticos, tarifas, reportes, auditoría, admins, beneficios, métricas) | Implementado; beneficios y métricas sin recorrer en pantalla |
-| Dashboard "Mi Auto" integrador | Parcial: estado, alertas y acceso a los módulos; falta el resumen de gastos por categoría |
+| Panel de Administración (usuarios, suspensión de cuentas, pórticos, tarifas, reportes, auditoría, admins, beneficios, métricas) | Implementado; falta recorrer en pantalla la suspensión de cuentas y las pantallas de pórticos, tarifas, reportes, auditoría y administradores |
+| Dashboard "Mi Auto" integrador | Implementado (~90%): estado, alertas, gasto del mes por categoría, próxima mantención, próximo vencimiento, beneficios y acceso a los módulos |
 
 ---
 
@@ -116,7 +119,7 @@ Catálogo filtrable en la app por categoría, ubicación y vigencia, con detalle
 
 ### Dashboard "Mi Auto"
 
-Pestaña de entrada con el vehículo elegido, su estado, alertas de documentos vencidos y mantenciones próximas, el estacionamiento en curso y acceso a los seis módulos. **Pendiente:** el resumen del gasto del mes por categoría (TAG, combustible, estacionamiento, mantención).
+Pestaña de entrada con el vehículo elegido, su estado, alertas de documentos vencidos y mantenciones próximas, el estacionamiento en curso, el gasto del mes por categoría (TAG, combustible, estacionamiento, mantención), la próxima mantención, el próximo vencimiento, los beneficios disponibles, acciones rápidas y acceso a los seis módulos.
 
 ---
 
@@ -175,6 +178,36 @@ Todos los cambios se reflejan **en tiempo real** en la app de los usuarios (Supa
 
 ---
 
+<a id="casos-de-uso"></a>
+
+## Casos de uso y avance
+
+Los porcentajes son estimaciones a partir del código y de lo recorrido en pantalla.
+
+| CU | Caso de uso | Actor | Avance | Observaciones |
+| :- | :---------- | :---- | :----- | :------------ |
+| 1 | Autenticarse | Administrador, Usuario | 100% | |
+| 2 | Crear cuenta | Usuario | 100% | Comparar los datos que pide con la plantilla del caso de uso |
+| 3 | Registrar vehículo | Usuario | 100% | |
+| 4 | Ficha del vehículo | Usuario | 100% | |
+| 5 | Documentos vehiculares | Usuario | ~95% | Manual, con IA y eliminar; falta probar la IA con documentos reales |
+| 6 | Estado y vencimientos | Usuario | ~90% | Estado y alertas verificados; notificaciones sin probar en celular |
+| 7 | Gestionar mantención | Usuario | ~90% | Probado con IA y 2 boletas; falta probar en celular |
+| 8 | Historial de mantenciones | Usuario | ~95% | Línea de tiempo verificada en pantalla |
+| 9 | Programar próxima mantención | Usuario | ~90% | Falta probar que los recordatorios lleguen al celular |
+| 10 | Gestionar estacionamientos | Usuario | 100% | Manual o con IA, editar y borrar; cronómetro verificado |
+| 11 | Cronómetro y ubicación GPS | Usuario | ~80% | Cronómetro verificado; sin permiso de ubicación guarda el registro sin ubicación; falta probar el GPS en celular |
+| 12 | Historial y gastos de estacionamientos | Usuario | 100% | Verificado en pantalla |
+| 13 | Gestionar combustible y carga | Usuario | ~95% | Registro manual verificado; falta probar la lectura de boleta con foto |
+| 14 | Historial y gastos de combustible | Usuario | ~95% | Verificado en pantalla |
+| 15 | Catálogo de beneficios | Usuario | ~95% | Verificado en pantalla |
+| 16 | Dashboard "Mi Auto" | Usuario | ~90% | Verificado; desborde de unos 5 píxeles en pantallas muy angostas |
+| 17 | Gestionar cuentas de usuarios | Administrador | ~95% | Búsqueda, suspensión y reactivación verificadas en pantalla; queda registrada en la bitácora de auditoría |
+| 18 | Administrar catálogo de beneficios | Administrador | ~95% | Un beneficio creado en el panel llega a la app |
+| 19 | Métricas globales del sistema | Administrador | ~90% | Verificado en pantalla con datos reales |
+
+---
+
 <a id="arquitectura-seguridad"></a>
 
 ## Arquitectura y Seguridad
@@ -189,11 +222,24 @@ La migración de Firebase a Supabase no fue solo un cambio de proveedor — se a
 
 ---
 
+<a id="calidad"></a>
+
+## Calidad y pruebas
+
+* **Pruebas automáticas:** 258 en la app, todas pasan. En el panel de administración pasan 44 y falla 1: es la prueba por defecto de Flutter (`admin/test/widget_test.dart`), que no corresponde al proyecto y hay que reemplazar.
+* **Qué cubren:** cálculos, validaciones, lectura de la IA con respuestas simuladas, fechas, filtros, caché sin conexión y el flujo de actualización periódica de los datos.
+* **Seguridad:** seguridad por fila en todas las tablas, clave de Gemini solo en el servidor, límites en la función de IA (tamaño, tipo de archivo y 10 llamadas por minuto por usuario), borrado de usuarios restringido a `super_admin` y archivos privados por carpeta de usuario.
+* **Actualización de datos en pantalla:** Combustible y Mantenciones usan Supabase Realtime. Estacionamientos y Beneficios consultan directamente la base (al abrir, cada 15 y 30 segundos, y al instante tras cada cambio hecho desde la app), para no depender de que la tabla esté publicada en Realtime.
+* **Modo sin conexión:** la app guarda una copia de los últimos datos recibidos; sin red se siguen viendo historiales y el tablero, pero no se puede registrar nada nuevo.
+* **No cubierto todavía:** el GPS real, las notificaciones y los recordatorios en celular, la lectura con IA de comprobantes reales (salvo Mantenciones) y las pantallas del panel de pórticos, tarifas, reportes, auditoría y administradores.
+
+---
+
 <a id="instalacion"></a>
 
 ## Instalación y Ejecución
 
-> ¿Primera vez montando el proyecto? Sigue la **[guía de instalación paso a paso](INSTALACION.md)**: incluye la configuración de Supabase, las Edge Functions, el primer administrador y los problemas frecuentes. Lo de abajo es un resumen.
+> ¿Primera vez montando el proyecto? Sigue la **[guía de instalación paso a paso](INSTALACION.md)**: incluye la configuración de Supabase, las Edge Functions, el primer administrador, los problemas frecuentes y cómo generar e instalar la APK de Android. Lo de abajo es un resumen.
 
 ### Requisitos
 
@@ -274,11 +320,30 @@ TAG-OK2.1/
 │   │
 │   └── Base de datos/           # Modelo lógico y relacional, script completo (Supabase) y exportación histórica de la v1 (Firebase)
 │
-├── INSTALACION.md               # Guía de instalación paso a paso
-├── GUIA_APK.md                  # Generar e instalar la app en un Android
-├── RESUMEN_FASE_2.md            # Resumen del alcance y estado de la Fase 2
+├── INSTALACION.md               # Guía de instalación paso a paso y generación de la APK
 └── README.md
 ```
+
+---
+
+<a id="pendientes"></a>
+
+## Pendientes
+
+**Para dejar la Fase 2 cerrada**
+
+1. Instalar la app en un celular y probar el GPS, el cronómetro, los recordatorios y las notificaciones.
+2. Recorrer en el panel la suspensión de cuentas, Pórticos, Tarifas, Reportes, Auditoría y Administradores.
+3. Probar la IA con comprobantes reales: documentos del vehículo, tickets de estacionamiento y boletas de combustible.
+4. Comparar el registro (CU2) y el semáforo de documentos (CU6, umbral de 30 días) con las plantillas de casos de uso.
+5. Borrar los datos de prueba de la cuenta de prueba.
+
+**Para el proyecto**
+
+6. Reemplazar la prueba por defecto del panel (`admin/test/widget_test.dart`).
+7. Limpiar restos de la versión anterior: las dependencias de Firebase que siguen en `requirements.txt` y la llave de servicio de Firebase (ya excluida de git).
+8. Notificaciones: decidir con cuánta anticipación avisar y que el interruptor del Perfil cancele los avisos ya programados.
+9. Corregir el pequeño desborde de la tarjeta de gasto de Mi Auto en pantallas angostas.
 
 ---
 
