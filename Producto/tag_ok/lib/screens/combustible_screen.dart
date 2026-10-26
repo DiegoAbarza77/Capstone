@@ -448,7 +448,6 @@ class _CombustibleScreenState extends State<CombustibleScreen> {
       children: [
         _buildSelectorMes(),
         _buildResumen(delMes),
-        const SizedBox(height: 12),
         _buildRendimiento(todas),
         const SizedBox(height: 24),
         const Text('Historial de cargas', style: TextStyle(color: kMantTextoSuave, fontSize: 13)),
@@ -537,11 +536,14 @@ class _CombustibleScreenState extends State<CombustibleScreen> {
   }
 
   /// Rendimiento promedio del vehículo, con todas sus cargas y no solo las del
-  /// mes (CU14, paso 6): necesita al menos dos llenados con kilometraje.
+  /// mes (CU14, paso 6): necesita al menos dos llenados con kilometraje. Si
+  /// aún no hay datos suficientes, no se muestra nada.
   Widget _buildRendimiento(List<CargaCombustibleModel> todas) {
     final r = calcularRendimiento(todas, unidad: 'litros') ?? calcularRendimiento(todas, unidad: 'kwh');
+    if (r == null) return const SizedBox.shrink();
 
     return Container(
+      margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: kMantTarjeta,
@@ -553,26 +555,21 @@ class _CombustibleScreenState extends State<CombustibleScreen> {
           const Icon(Icons.speed_outlined, color: kMantAdvertencia, size: 22),
           const SizedBox(width: 12),
           Expanded(
-            child: r != null
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Rendimiento estimado', style: TextStyle(color: kMantTextoSuave, fontSize: 12)),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${formatoCantidad(double.parse(r.kmPorUnidad.toStringAsFixed(1)))} ${r.etiqueta}',
-                        style: const TextStyle(color: kMantTexto, fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Promedio de ${r.tramos} ${r.tramos == 1 ? 'tramo' : 'tramos'} entre llenados',
-                        style: const TextStyle(color: kMantTextoSuave, fontSize: 11),
-                      ),
-                    ],
-                  )
-                : const Text(
-                    'Para calcular tu rendimiento, registra al menos dos cargas con el estanque lleno y su kilometraje.',
-                    style: TextStyle(color: kMantTextoSuave, fontSize: 13),
-                  ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Rendimiento estimado', style: TextStyle(color: kMantTextoSuave, fontSize: 12)),
+                const SizedBox(height: 2),
+                Text(
+                  '${formatoCantidad(double.parse(r.kmPorUnidad.toStringAsFixed(1)))} ${r.etiqueta}',
+                  style: const TextStyle(color: kMantTexto, fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'Promedio de ${r.tramos} ${r.tramos == 1 ? 'tramo' : 'tramos'} entre llenados',
+                  style: const TextStyle(color: kMantTextoSuave, fontSize: 11),
+                ),
+              ],
+            ),
           ),
         ],
       ),
