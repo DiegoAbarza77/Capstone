@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,6 +6,7 @@ import '../data/models/documento_vehiculo_model.dart';
 import '../data/services/documento_ia_service.dart';
 import '../data/services/notificaciones_vencimiento_service.dart';
 import '../data/services/vehiculo_documentos_service.dart';
+import '../utils/selector_archivo.dart';
 
 /// Detalle de un documento del vehículo (permiso, revisión técnica, SOAP o
 /// seguro): muestra lo cargado y permite subirlo con IA o editarlo a mano.
@@ -242,14 +242,8 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
 
   Future<void> _agregarDocumentoConIA() async {
     try {
-      final FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-        withData: true,
-      );
-      if (result == null || result.files.isEmpty) return;
-
-      final file = result.files.first;
+      final file = await elegirArchivoConCamara(context, extensiones: const ['pdf', 'jpg', 'jpeg', 'png']);
+      if (file == null) return;
       final Uint8List? bytes = file.bytes;
       if (bytes == null) {
         throw Exception('No se pudieron leer los bytes del archivo seleccionado.');

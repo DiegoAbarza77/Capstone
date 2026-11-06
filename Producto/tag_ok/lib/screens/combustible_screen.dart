@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/carga_combustible_model.dart';
@@ -10,6 +9,7 @@ import '../utils/numero_chile.dart';
 import 'combustible_form_screen.dart';
 import 'mantencion_form_screen.dart' show ArchivoAdjunto, mimeDeArchivo;
 import 'mantencion_ui.dart';
+import '../utils/selector_archivo.dart';
 
 const Color _kCombustible = Color(0xFF10B981);
 
@@ -107,14 +107,8 @@ class _CombustibleScreenState extends State<CombustibleScreen> {
   }
 
   Future<void> _registrarConIa({String? combustible, double? kmActual}) async {
-    final resultado = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png'],
-      withData: true,
-    );
-    if (resultado == null || resultado.files.isEmpty || !mounted) return;
-
-    final archivo = resultado.files.first;
+    final archivo = await elegirArchivoConCamara(context, extensiones: const ['pdf', 'jpg', 'jpeg', 'png']);
+    if (archivo == null || !mounted) return;
     final bytes = archivo.bytes;
     if (bytes == null) {
       _mensaje('No se pudo leer el archivo.', error: true);

@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../data/models/mantencion_model.dart';
@@ -7,6 +6,7 @@ import '../data/services/mantencion_service.dart';
 import '../utils/mantencion_calculos.dart';
 import '../utils/numero_chile.dart';
 import 'mantencion_ui.dart';
+import '../utils/selector_archivo.dart';
 
 /// Archivo (boleta o factura) que se va a adjuntar a una mantención.
 class ArchivoAdjunto {
@@ -270,14 +270,8 @@ class _MantencionFormScreenState extends State<MantencionFormScreen> {
   }
 
   Future<void> _adjuntarArchivo() async {
-    final resultado = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
-      withData: true,
-    );
-    if (resultado == null || resultado.files.isEmpty) return;
-
-    final archivo = resultado.files.first;
+    final archivo = await elegirArchivoConCamara(context, extensiones: const ['pdf', 'jpg', 'jpeg', 'png', 'webp']);
+    if (archivo == null) return;
     final bytes = archivo.bytes;
     if (!mounted) return;
     if (bytes == null) {

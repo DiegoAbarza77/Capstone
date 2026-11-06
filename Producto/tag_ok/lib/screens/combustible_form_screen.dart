@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../data/models/carga_combustible_model.dart';
@@ -8,6 +7,7 @@ import '../utils/combustible_calculos.dart';
 import '../utils/numero_chile.dart';
 import 'mantencion_form_screen.dart' show ArchivoAdjunto, mimeDeArchivo;
 import 'mantencion_ui.dart';
+import '../utils/selector_archivo.dart';
 
 /// Formulario para registrar o modificar una carga de combustible o de energía.
 /// Sirve para el registro manual y también para revisar lo que la IA leyó de una
@@ -228,14 +228,8 @@ class _CombustibleFormScreenState extends State<CombustibleFormScreen> {
   }
 
   Future<void> _adjuntarArchivo() async {
-    final resultado = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
-      withData: true,
-    );
-    if (resultado == null || resultado.files.isEmpty) return;
-
-    final archivo = resultado.files.first;
+    final archivo = await elegirArchivoConCamara(context, extensiones: const ['pdf', 'jpg', 'jpeg', 'png', 'webp']);
+    if (archivo == null) return;
     final bytes = archivo.bytes;
     if (!mounted) return;
     if (bytes == null) {

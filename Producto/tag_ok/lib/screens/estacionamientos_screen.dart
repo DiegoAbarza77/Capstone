@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../data/models/estacionamiento_model.dart';
 import '../data/services/estacionamiento_ia_service.dart';
@@ -13,6 +12,7 @@ import 'estacionamiento_form_screen.dart';
 import 'mantencion_form_screen.dart' show ArchivoAdjunto, mimeDeArchivo;
 import 'mantencion_ui.dart';
 import 'mapa_ubicacion.dart';
+import '../utils/selector_archivo.dart';
 
 const Color _kCronometro = Color(0xFF38BDF8);
 
@@ -171,14 +171,8 @@ class _EstacionamientosScreenState extends State<EstacionamientosScreen> {
   }
 
   Future<void> _registrarConIa() async {
-    final resultado = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png'],
-      withData: true,
-    );
-    if (resultado == null || resultado.files.isEmpty || !mounted) return;
-
-    final archivo = resultado.files.first;
+    final archivo = await elegirArchivoConCamara(context, extensiones: const ['pdf', 'jpg', 'jpeg', 'png']);
+    if (archivo == null || !mounted) return;
     final bytes = archivo.bytes;
     if (bytes == null) {
       _mensaje('No se pudo leer el archivo.', error: true);

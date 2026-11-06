@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/mantencion_model.dart';
@@ -11,6 +10,7 @@ import '../utils/numero_chile.dart';
 import 'mantencion_form_screen.dart';
 import 'mantencion_ui.dart';
 import 'programar_mantencion_dialog.dart';
+import '../utils/selector_archivo.dart';
 
 /// Módulo Mantenciones: línea de tiempo del historial (CU8), registro manual o
 /// con IA (CU7) y programación de la próxima mantención con recordatorios (CU9).
@@ -102,14 +102,8 @@ class _MantencionesScreenState extends State<MantencionesScreen> {
   }
 
   Future<void> _registrarConIa({required List<MantencionModel> historial, double? kmActual}) async {
-    final resultado = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png'],
-      withData: true,
-    );
-    if (resultado == null || resultado.files.isEmpty || !mounted) return;
-
-    final archivo = resultado.files.first;
+    final archivo = await elegirArchivoConCamara(context, extensiones: const ['pdf', 'jpg', 'jpeg', 'png']);
+    if (archivo == null || !mounted) return;
     final bytes = archivo.bytes;
     if (bytes == null) {
       _mensaje('No se pudo leer el archivo.', error: true);

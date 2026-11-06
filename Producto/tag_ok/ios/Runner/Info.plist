@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Tag OK necesita acceder a tus fotos para que puedas elegir una imagen de perfil.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Tag OK usa la cámara para que puedas fotografiar documentos y boletas y leerlos con Inteligencia Artificial.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -2,13 +2,13 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:excel/excel.dart' hide Border, TextSpan;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/trip_history.dart';
 import '../data/services/history_service.dart';
 import 'package:tag_ok/utils/file_saver.dart';
+import '../utils/selector_archivo.dart';
 
 class AuditScreen extends StatefulWidget {
   const AuditScreen({super.key});
@@ -654,15 +654,8 @@ Instrucciones para redactar el "aiReport":
 
   Future<void> _pickAndAuditInvoice() async {
     try {
-      final FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'csv', 'xlsx', 'jpg', 'jpeg', 'png'],
-        withData: true,
-      );
-
-      if (result == null || result.files.isEmpty) return;
-
-      final file = result.files.first;
+      final file = await elegirArchivoConCamara(context, extensiones: const ['pdf', 'csv', 'xlsx', 'jpg', 'jpeg', 'png']);
+      if (file == null) return;
       final fileBytes = file.bytes;
       if (fileBytes == null) {
         throw Exception('No se pudieron leer los bytes del archivo seleccionado.');

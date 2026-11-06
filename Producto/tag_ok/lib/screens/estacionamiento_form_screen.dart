@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../data/models/estacionamiento_model.dart';
 import '../data/services/estacionamiento_ia_service.dart';
@@ -9,6 +8,7 @@ import '../utils/numero_chile.dart';
 import 'mantencion_form_screen.dart' show ArchivoAdjunto, mimeDeArchivo;
 import 'mantencion_ui.dart';
 import 'mapa_ubicacion.dart';
+import '../utils/selector_archivo.dart';
 
 /// Formulario para registrar o modificar un estacionamiento. Sirve para el
 /// registro manual y también para la revisión de lo que leyó la IA de un ticket:
@@ -280,14 +280,8 @@ class _EstacionamientoFormScreenState extends State<EstacionamientoFormScreen> {
   }
 
   Future<void> _adjuntarArchivo() async {
-    final resultado = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
-      withData: true,
-    );
-    if (resultado == null || resultado.files.isEmpty) return;
-
-    final archivo = resultado.files.first;
+    final archivo = await elegirArchivoConCamara(context, extensiones: const ['pdf', 'jpg', 'jpeg', 'png', 'webp']);
+    if (archivo == null) return;
     final bytes = archivo.bytes;
     if (!mounted) return;
     if (bytes == null) {
