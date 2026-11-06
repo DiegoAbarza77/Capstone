@@ -23,6 +23,9 @@ class DocumentoVehiculoModel {
   final DateTime? aiCapturadoEn;
   final String? archivoNombre;
 
+  /// Ruta del archivo guardado (foto o PDF) dentro del bucket `vehiculo_docs`.
+  final String? archivoPath;
+
   DocumentoVehiculoModel({
     required this.tipo,
     this.numero,
@@ -32,7 +35,26 @@ class DocumentoVehiculoModel {
     this.origen = 'manual',
     this.aiCapturadoEn,
     this.archivoNombre,
+    this.archivoPath,
   });
+
+  /// True si el documento tiene su archivo original guardado.
+  bool get tieneArchivo => archivoPath != null && archivoPath!.isNotEmpty;
+
+  /// Misma ficha con otro archivo adjunto; todo lo demás queda igual.
+  DocumentoVehiculoModel conArchivo({required String path, required String nombre}) {
+    return DocumentoVehiculoModel(
+      tipo: tipo,
+      numero: numero,
+      fechaEmision: fechaEmision,
+      fechaVencimiento: fechaVencimiento,
+      compania: compania,
+      origen: origen,
+      aiCapturadoEn: aiCapturadoEn,
+      archivoNombre: nombre,
+      archivoPath: path,
+    );
+  }
 
   String get label => kTiposDocumentoVehiculo.firstWhere(
         (t) => t['id'] == tipo,
@@ -79,6 +101,7 @@ class DocumentoVehiculoModel {
       origen: row['origen'] ?? 'manual',
       aiCapturadoEn: row['ai_capturado_en'] != null ? DateTime.parse(row['ai_capturado_en']) : null,
       archivoNombre: row['archivo_nombre'],
+      archivoPath: row['archivo_path'],
     );
   }
 
@@ -91,6 +114,9 @@ class DocumentoVehiculoModel {
       'origen': origen,
       'ai_capturado_en': aiCapturadoEn?.toIso8601String(),
       'archivo_nombre': archivoNombre,
+      // Solo cuando hay archivo: así guardar un documento sigue funcionando
+      // aunque la migración 0018 (que agrega esta columna) no esté aplicada.
+      if (archivoPath != null) 'archivo_path': archivoPath,
     };
   }
 }

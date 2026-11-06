@@ -9,6 +9,8 @@ import 'login_screen.dart';
 import 'admin_supabase_service.dart';
 import 'beneficios_page.dart';
 import 'metricas_page.dart';
+import 'usuario_datos_dialog.dart';
+import 'usuarios_filtros_logica.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -1512,6 +1514,7 @@ class _UsersPageState extends State<UsersPage> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _searchQuery = '';
   String _selectedBudgetFilter = 'Todos'; // 'Todos', '> 50.000', '< = 50.000'
+  FiltroEstado _filtroEstado = FiltroEstado.todos;
   int _currentPage = 0;
   int _rowsPerPage = 10;
 
@@ -1551,6 +1554,8 @@ class _UsersPageState extends State<UsersPage> {
       return false;
     }
 
+    if (!coincideEstado(data, _filtroEstado)) return false;
+
     return true;
   }
 
@@ -1567,10 +1572,13 @@ class _UsersPageState extends State<UsersPage> {
             margin: const EdgeInsets.only(bottom: 16),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Expanded(
-                    flex: 3,
+                  SizedBox(
+                    width: 300,
                     child: TextField(
                       controller: _searchCtrl,
                       decoration: InputDecoration(
@@ -1584,9 +1592,8 @@ class _UsersPageState extends State<UsersPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    flex: 2,
+                  SizedBox(
+                    width: 240,
                     child: DropdownButtonFormField<String>(
                       initialValue: _selectedBudgetFilter,
                       decoration: InputDecoration(
@@ -1614,6 +1621,34 @@ class _UsersPageState extends State<UsersPage> {
                         if (val != null) {
                           setState(() {
                             _selectedBudgetFilter = val;
+                            _currentPage = 0;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  SizedBox(
+                    width: 240,
+                    child: DropdownButtonFormField<FiltroEstado>(
+                      initialValue: _filtroEstado,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        labelText: 'Estado de la cuenta',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      items: [
+                        for (final filtro in FiltroEstado.values)
+                          DropdownMenuItem(
+                            value: filtro,
+                            child: Text(etiquetaFiltroEstado(filtro)),
+                          ),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _filtroEstado = val;
                             _currentPage = 0;
                           });
                         }
@@ -1845,6 +1880,23 @@ class _UsersPageState extends State<UsersPage> {
                                         Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.folder_open_outlined,
+                                                color: Color(0xFF8B5CF6),
+                                                size: 20,
+                                              ),
+                                              tooltip: 'Ver datos de la app',
+                                              onPressed: () {
+                                                mostrarDatosUsuario(
+                                                  context,
+                                                  service: widget.service,
+                                                  usuarioId: docId,
+                                                  nombre: nombre,
+                                                  correo: correo,
+                                                );
+                                              },
+                                            ),
                                             IconButton(
                                               icon: const Icon(
                                                 Icons.edit_outlined,

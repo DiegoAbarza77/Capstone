@@ -168,7 +168,18 @@ class _DocumentosVehiculoScreenState extends State<DocumentosVehiculoScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(doc.label, style: TextStyle(color: textMain, fontWeight: FontWeight.bold, fontSize: 15)),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(doc.label,
+                              style: TextStyle(color: textMain, fontWeight: FontWeight.bold, fontSize: 15)),
+                        ),
+                        if (doc.tieneArchivo) ...[
+                          const SizedBox(width: 6),
+                          Icon(Icons.attach_file, color: textMuted, size: 16),
+                        ],
+                      ],
+                    ),
                     const SizedBox(height: 4),
                     if (doc.numero != null && doc.numero!.isNotEmpty)
                       Text('N° ${doc.numero}', style: TextStyle(color: textMuted, fontSize: 12)),

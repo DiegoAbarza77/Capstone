@@ -6,6 +6,7 @@ import '../data/models/documento_vehiculo_model.dart';
 import '../data/services/documento_ia_service.dart';
 import '../data/services/notificaciones_vencimiento_service.dart';
 import '../data/services/vehiculo_documentos_service.dart';
+import '../utils/file_saver.dart';
 import '../utils/selector_archivo.dart';
 
 /// Detalle de un documento del vehículo (permiso, revisión técnica, SOAP o
@@ -40,6 +41,10 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
   final NotificacionesVencimientoService _notifService = NotificacionesVencimientoService();
 
   bool _isProcessingIA = false;
+  bool _subiendoArchivo = false;
+
+  /// Peso máximo del archivo: es el límite del bucket vehiculo_docs.
+  static const int _tamanoMaximo = 10 * 1024 * 1024;
   bool _notifVencimientosHabilitado = true;
 
   @override
@@ -109,6 +114,8 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
             children: [
               _buildResumen(doc),
               const SizedBox(height: 16),
+              _buildTarjetaArchivo(doc),
+              const SizedBox(height: 12),
               _buildTarjetaSubirConIA(doc),
               const SizedBox(height: 12),
               OutlinedButton.icon(
@@ -186,7 +193,6 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
           fila('Compañía / Emisor', doc.compania),
           fila('Fecha de emisión', doc.fechaEmision != null ? dateFmt.format(doc.fechaEmision!) : null),
           fila('Vencimiento', doc.fechaVencimiento != null ? dateFmt.format(doc.fechaVencimiento!) : null),
-          if (doc.origen == 'ia' && doc.archivoNombre != null) fila('Archivo', doc.archivoNombre),
         ],
       ),
     );
@@ -194,7 +200,7 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
 
   Widget _buildTarjetaSubirConIA(DocumentoVehiculoModel doc) {
     return InkWell(
-      onTap: _isProcessingIA ? null : _agregarDocumentoConIA,
+      onTap: _isProcessingIA ? null : () => _agregarDocumentoConIA(doc),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -240,7 +246,7 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
     );
   }
 
-  Future<void> _agregarDocumentoConIA() async {
+  Future<void> _agregarDocumentoConIA(DocumentoVehiculoModel actual) async {
     try {
       final file = await elegirArchivoConCamara(context, extensiones: const ['pdf', 'jpg', 'jpeg', 'png']);
       if (file == null) return;
@@ -249,12 +255,11 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
         throw Exception('No se pudieron leer los bytes del archivo seleccionado.');
       }
 
-      final nameLower = file.name.toLowerCase();
-      final String mimeType = nameLower.endsWith('.pdf')
-          ? 'application/pdf'
-          : nameLower.endsWith('.png')
-              ? 'image/png'
-              : 'image/jpeg';
+      if (bytes.length > _tamanoMaximo) {
+        throw Exception('El archivo pesa más de 10 MB. Elige uno más liviano.');
+      }
+
+      final String mimeType = _mimeDe(file.name);
 
       setState(() => _isProcessingIA = true);
 
@@ -267,7 +272,13 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
       if (!mounted) return;
       setState(() => _isProcessingIA = false);
 
-      await _mostrarRevisionDocumentoIA(extraido, nombreArchivo: file.name);
+      await _mostrarRevisionDocumentoIA(
+        extraido,
+        nombreArchivo: file.name,
+        bytes: bytes,
+        mimeType: mimeType,
+        actual: actual,
+      );
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessingIA = false);
@@ -284,7 +295,11 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
   Future<void> _mostrarRevisionDocumentoIA(
     Map<String, dynamic> extraido, {
     required String nombreArchivo,
+    required Uint8List bytes,
+    required String mimeType,
+    required DocumentoVehiculoModel actual,
   }) async {
+    var fallaAdjunto = false;
     final String tipoSel = widget.tipo;
     final String? tipoDetectado = extraido['tipo']?.toString();
     final bool tipoNoCoincide = tipoDetectado != null && tipoDetectado.isNotEmpty && tipoDetectado != widget.tipo;
@@ -416,6 +431,22 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
                             guardando = true;
                             errorGuardado = null;
                           });
+                          // El archivo se sube primero. Si falla, los datos se guardan
+                          // igual (y se conserva el archivo anterior, si había uno).
+                          String? rutaNueva;
+                          try {
+                            rutaNueva = await _service.subirArchivo(
+                              vehiculoId: widget.vehiculoId,
+                              tipo: tipoSel,
+                              bytes: bytes,
+                              nombre: nombreArchivo,
+                              mime: mimeType,
+                            );
+                          } catch (e) {
+                            debugPrint('TAG_OK_DOCUMENTOS: no se pudo subir el archivo: $e');
+                            fallaAdjunto = true;
+                          }
+                          final conservaAnterior = rutaNueva == null && actual.tieneArchivo;
                           final nuevoDoc = DocumentoVehiculoModel(
                             tipo: tipoSel,
                             numero: numeroCtrl.text.trim().isEmpty ? null : numeroCtrl.text.trim(),
@@ -424,10 +455,17 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
                             fechaVencimiento: fechaVencimiento,
                             origen: 'ia',
                             aiCapturadoEn: DateTime.now(),
-                            archivoNombre: nombreArchivo,
+                            archivoNombre: rutaNueva != null
+                                ? nombreArchivo
+                                : (conservaAnterior ? actual.archivoNombre : nombreArchivo),
+                            archivoPath: rutaNueva ?? (conservaAnterior ? actual.archivoPath : null),
                           );
                           try {
                             await _guardarYNotificar(nuevoDoc);
+                            // Ya quedó guardado el archivo nuevo: se borra el anterior.
+                            if (rutaNueva != null && actual.tieneArchivo) {
+                              await _service.borrarArchivo(actual.archivoPath!);
+                            }
                             if (dialogContext.mounted) Navigator.pop(dialogContext);
                           } catch (e) {
                             debugPrint('TAG_OK_DOCUMENTOS: error al guardar: $e');
@@ -454,10 +492,226 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
         );
       },
     );
+
+    if (fallaAdjunto && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Los datos se guardaron, pero no se pudo guardar el archivo. Puedes adjuntarlo después.'),
+          backgroundColor: Color(0xFFF59E0B),
+        ),
+      );
+    }
   }
 
   String _etiquetaTipo(String id) => kTiposDocumentoVehiculo
       .firstWhere((t) => t['id'] == id, orElse: () => {'id': id, 'label': id})['label']!;
+
+  String _mimeDe(String nombre) {
+    final minusculas = nombre.toLowerCase();
+    if (minusculas.endsWith('.pdf')) return 'application/pdf';
+    if (minusculas.endsWith('.png')) return 'image/png';
+    if (minusculas.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
+  }
+
+  void _avisar(String mensaje, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje), backgroundColor: error ? Colors.redAccent : accentColor),
+    );
+  }
+
+  /// Tarjeta con el archivo original del documento: verlo, reemplazarlo,
+  /// quitarlo o, si no hay, adjuntar una foto o un PDF.
+  Widget _buildTarjetaArchivo(DocumentoVehiculoModel doc) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: navBgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(doc.tieneArchivo ? Icons.attach_file : Icons.insert_drive_file_outlined, color: textMuted, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Archivo del documento',
+                        style: TextStyle(color: textMain, fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 2),
+                    Text(
+                      doc.tieneArchivo ? (doc.archivoNombre ?? 'Archivo adjunto') : 'Todavía no hay foto ni PDF guardado',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: textMuted, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              if (_subiendoArchivo)
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: primaryColor),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (doc.tieneArchivo)
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: accentColor,
+                    side: BorderSide(color: accentColor),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: _subiendoArchivo ? null : () => _verArchivo(doc),
+                  icon: const Icon(Icons.visibility_outlined, size: 18),
+                  label: const Text('Ver archivo'),
+                ),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: primaryColor,
+                  side: BorderSide(color: primaryColor),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: _subiendoArchivo ? null : () => _adjuntarArchivo(doc),
+                icon: const Icon(Icons.upload_file_outlined, size: 18),
+                label: Text(doc.tieneArchivo ? 'Reemplazar' : 'Adjuntar foto o PDF'),
+              ),
+              if (doc.tieneArchivo)
+                TextButton.icon(
+                  style: TextButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
+                  onPressed: _subiendoArchivo ? null : () => _quitarArchivo(doc),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Quitar'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Adjunta (o reemplaza) el archivo sin tocar los datos del documento.
+  Future<void> _adjuntarArchivo(DocumentoVehiculoModel doc) async {
+    final archivo = await elegirArchivoConCamara(context, extensiones: const ['pdf', 'jpg', 'jpeg', 'png']);
+    if (archivo == null || !mounted) return;
+    final bytes = archivo.bytes;
+    if (bytes == null) {
+      _avisar('No se pudo leer el archivo.', error: true);
+      return;
+    }
+    if (bytes.length > _tamanoMaximo) {
+      _avisar('El archivo pesa más de 10 MB. Elige uno más liviano.', error: true);
+      return;
+    }
+
+    setState(() => _subiendoArchivo = true);
+    try {
+      final ruta = await _service.subirArchivo(
+        vehiculoId: widget.vehiculoId,
+        tipo: doc.tipo,
+        bytes: bytes,
+        nombre: archivo.name,
+        mime: _mimeDe(archivo.name),
+      );
+      await _service.guardarDocumento(widget.vehiculoId, doc.conArchivo(path: ruta, nombre: archivo.name));
+      if (doc.tieneArchivo) await _service.borrarArchivo(doc.archivoPath!);
+      _avisar('Archivo guardado');
+    } catch (e) {
+      debugPrint('TAG_OK_DOCUMENTOS: no se pudo adjuntar el archivo: $e');
+      _avisar('No se pudo guardar el archivo. Revisa tu conexión e intenta de nuevo.', error: true);
+    } finally {
+      if (mounted) setState(() => _subiendoArchivo = false);
+    }
+  }
+
+  Future<void> _verArchivo(DocumentoVehiculoModel doc) async {
+    final ruta = doc.archivoPath;
+    if (ruta == null) return;
+    setState(() => _subiendoArchivo = true);
+    try {
+      final bytes = await _service.descargarArchivo(ruta);
+      if (!mounted) return;
+      final nombre = doc.archivoNombre ?? 'documento';
+      if (nombre.toLowerCase().endsWith('.pdf')) {
+        await saveFileBytes(bytes: bytes, fileName: nombre);
+      } else {
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => Dialog(
+            backgroundColor: bgColor,
+            insetPadding: const EdgeInsets.all(12),
+            child: Stack(
+              children: [
+                InteractiveViewer(child: Image.memory(bytes, fit: BoxFit.contain)),
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: IconButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('TAG_OK_DOCUMENTOS: no se pudo abrir el archivo: $e');
+      _avisar('No se pudo abrir el archivo. Revisa tu conexión e intenta de nuevo.', error: true);
+    } finally {
+      if (mounted) setState(() => _subiendoArchivo = false);
+    }
+  }
+
+  Future<void> _quitarArchivo(DocumentoVehiculoModel doc) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: navBgColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Quitar el archivo', style: TextStyle(color: textMain, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Se borrará la foto o el PDF guardado. Los datos del documento se conservan.',
+          style: TextStyle(color: textMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancelar', style: TextStyle(color: textMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Quitar archivo', style: TextStyle(color: Color(0xFFEF4444))),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || doc.archivoPath == null) return;
+
+    setState(() => _subiendoArchivo = true);
+    try {
+      await _service.quitarArchivo(widget.vehiculoId, doc.tipo, doc.archivoPath!);
+      _avisar('Archivo quitado');
+    } catch (e) {
+      debugPrint('TAG_OK_DOCUMENTOS: no se pudo quitar el archivo: $e');
+      _avisar('No se pudo quitar el archivo. Revisa tu conexión e intenta de nuevo.', error: true);
+    } finally {
+      if (mounted) setState(() => _subiendoArchivo = false);
+    }
+  }
 
   Widget _textoError(String texto) {
     return Padding(
@@ -493,7 +747,7 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
     );
     if (confirmado != true) return false;
     try {
-      await _service.eliminarDocumento(widget.vehiculoId, doc.tipo);
+      await _service.eliminarDocumento(widget.vehiculoId, doc.tipo, archivoPath: doc.archivoPath);
       await _notifService.cancelarParaDocumento(widget.vehiculoId, doc.tipo);
       return true;
     } catch (_) {
@@ -672,6 +926,9 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
                       // Origen vuelve a "manual": si el documento venía de una
                       // extracción de IA, editarlo a mano ya lo desvincula de
                       // ese origen -- ahora es un dato que el usuario tecleó.
+                      // El archivo adjunto, en cambio, se conserva.
+                      archivoNombre: doc.archivoNombre,
+                      archivoPath: doc.archivoPath,
                     );
                     try {
                       await _guardarYNotificar(nuevoDoc);

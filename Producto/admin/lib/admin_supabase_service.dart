@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'beneficio_logica.dart';
 import 'metricas_logica.dart';
+import 'usuario_datos_logica.dart';
 
 class AdminOverview {
   const AdminOverview({
@@ -197,6 +198,51 @@ class AdminSupabaseService {
 
   Stream<List<Map<String, dynamic>>> streamUserTrips() {
     return _client.from('trips').stream(primaryKey: ['id']).order('date', ascending: false);
+  }
+
+  /// Trae lo que un conductor ha registrado en la app (vehículos, documentos,
+  /// mantenciones, combustible y estacionamientos), solo para leer. Cada consulta
+  /// queda en la bitácora de auditoría, porque son datos de una persona.
+  Future<DatosUsuario> fetchDatosUsuario({required String usuarioId, required String nombre}) async {
+    Future<List<Map<String, dynamic>>> ultimos(String tabla) async {
+      final filas = await _client
+          .from(tabla)
+          .select()
+          .eq('usuario_id', usuarioId)
+          .order('fecha', ascending: false)
+          .limit(DatosUsuario.limiteFilas);
+      return List<Map<String, dynamic>>.from(filas);
+    }
+
+    final vehiculos = List<Map<String, dynamic>>.from(
+      await _client.from('vehiculos').select().eq('usuario_id', usuarioId).order('created_at'),
+    );
+    final idsVehiculos = [for (final v in vehiculos) v['id'].toString()];
+
+    final resultados = await Future.wait([
+      idsVehiculos.isEmpty
+          ? Future.value(<Map<String, dynamic>>[])
+          : _client.from('vehiculo_documentos').select().inFilter('vehiculo_id', idsVehiculos).then(
+                (filas) => List<Map<String, dynamic>>.from(filas),
+              ),
+      ultimos('mantenciones'),
+      ultimos('combustible_cargas'),
+      ultimos('estacionamientos'),
+    ]);
+
+    await _registrarSinFallar(
+      action: 'Consultar datos de usuario',
+      target: nombre,
+      details: 'Se revisaron sus vehículos, documentos y gastos registrados.',
+    );
+
+    return DatosUsuario(
+      vehiculos: vehiculos,
+      documentos: resultados[0],
+      mantenciones: resultados[1],
+      cargas: resultados[2],
+      estacionamientos: resultados[3],
+    );
   }
 
   /// Suspende o reactiva una cuenta (CU18) y deja el cambio en la bitácora. La
