@@ -8,6 +8,7 @@ import '../data/services/notificaciones_vencimiento_service.dart';
 import '../data/services/vehiculo_documentos_service.dart';
 import '../utils/file_saver.dart';
 import '../utils/selector_archivo.dart';
+import '../utils/textos_carga.dart';
 
 /// Detalle de un documento del vehículo (permiso, revisión técnica, SOAP o
 /// seguro): muestra lo cargado y permite subirlo con IA o editarlo a mano.
@@ -229,12 +230,16 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _isProcessingIA ? 'Analizando documento…' : _tieneDatos(doc) ? 'Reemplazar con IA' : 'Subir con IA',
+                    _isProcessingIA
+                        ? 'Analizando documento…'
+                        : _tieneDatos(doc)
+                            ? 'Leer de nuevo con IA'
+                            : 'Leer documento con IA',
                     style: TextStyle(color: iaColor, fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Fotografiar → revisar → guardar',
+                    _tieneDatos(doc) ? kTextoIaDetalleReemplazo : kTextoIaDetalle,
                     style: TextStyle(color: textMuted, fontSize: 12),
                   ),
                 ],
@@ -586,7 +591,7 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
                 ),
                 onPressed: _subiendoArchivo ? null : () => _adjuntarArchivo(doc),
                 icon: const Icon(Icons.upload_file_outlined, size: 18),
-                label: Text(doc.tieneArchivo ? 'Reemplazar' : 'Adjuntar foto o PDF'),
+                label: Text(doc.tieneArchivo ? 'Cambiar archivo' : 'Adjuntar foto o PDF'),
               ),
               if (doc.tieneArchivo)
                 TextButton.icon(
@@ -597,6 +602,8 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
                 ),
             ],
           ),
+          const SizedBox(height: 10),
+          Text(kTextoSoloGuardarArchivo, style: TextStyle(color: textMuted, fontSize: 12)),
         ],
       ),
     );

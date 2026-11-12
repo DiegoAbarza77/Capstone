@@ -12,6 +12,7 @@ class _CamaraFalsa extends ImagePickerPlatform with MockPlatformInterfaceMixin {
   XFile? foto;
   Object? error;
   int llamadas = 0;
+  final List<ImageSource> fuentes = [];
 
   @override
   Future<XFile?> getImageFromSource({
@@ -19,6 +20,7 @@ class _CamaraFalsa extends ImagePickerPlatform with MockPlatformInterfaceMixin {
     ImagePickerOptions options = const ImagePickerOptions(),
   }) async {
     llamadas++;
+    fuentes.add(source);
     if (error != null) throw error!;
     return foto;
   }
@@ -60,7 +62,69 @@ void main() {
     await abrirSelector(tester);
 
     expect(find.text('Tomar foto'), findsOneWidget);
+    expect(find.text('Elegir de la galería'), findsOneWidget);
     expect(find.text('Elegir archivo'), findsOneWidget);
+  });
+
+  testWidgets('"Elegir de la galería" abre la galería y devuelve la foto', (tester) async {
+    camara.foto = XFile.fromData(Uint8List.fromList([5, 6]), path: '/galeria/IMG_20261105.jpg');
+    await abrirSelector(tester);
+
+    await tester.tap(find.text('Elegir de la galería'));
+    await tester.pumpAndSettle();
+
+    expect(camara.fuentes, [ImageSource.gallery]);
+    expect(resultado, isNotNull);
+    expect(resultado!.bytes, Uint8List.fromList([5, 6]));
+    expect(resultado!.name, 'IMG_20261105.jpg');
+  });
+
+  testWidgets('"Tomar foto" abre la cámara, no la galería', (tester) async {
+    camara.foto = XFile.fromData(Uint8List.fromList([1]), path: '/cache/foto.jpg');
+    await abrirSelector(tester);
+
+    await tester.tap(find.text('Tomar foto'));
+    await tester.pumpAndSettle();
+
+    expect(camara.fuentes, [ImageSource.camera]);
+  });
+
+  testWidgets('si la galería falla avisa que no se pudo abrir la galería', (tester) async {
+    camara.error = Exception('sin permiso');
+    await abrirSelector(tester);
+
+    await tester.tap(find.text('Elegir de la galería'));
+    await tester.pumpAndSettle();
+
+    expect(resultado, isNull);
+    expect(find.textContaining('No se pudo abrir la galería'), findsOneWidget);
+  });
+
+  testWidgets('el texto de "Elegir archivo" dice si acepta Excel y CSV', (tester) async {
+    Future<void> abrirCon(List<String> extensiones) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => elegirArchivoConCamara(context, extensiones: extensiones),
+                child: const Text('abrir'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+    }
+
+    await abrirCon(const ['pdf', 'jpg']);
+    expect(find.text('Un PDF guardado en el celular'), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    await abrirCon(const ['pdf', 'csv', 'xlsx']);
+    expect(find.text('Un PDF, Excel o CSV guardado en el celular'), findsOneWidget);
   });
 
   testWidgets('tomar una foto devuelve sus bytes y un nombre .jpg', (tester) async {

@@ -11,6 +11,7 @@ import 'mantencion_form_screen.dart';
 import 'mantencion_ui.dart';
 import 'programar_mantencion_dialog.dart';
 import '../utils/selector_archivo.dart';
+import '../utils/textos_carga.dart';
 
 /// Módulo Mantenciones: línea de tiempo del historial (CU8), registro manual o
 /// con IA (CU7) y programación de la próxima mantención con recordatorios (CU9).
@@ -77,14 +78,15 @@ class _MantencionesScreenState extends State<MantencionesScreen> {
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(Icons.edit_note_outlined, color: kMantPrimario),
-              title: const Text('Registro manual', style: TextStyle(color: kMantTexto)),
-              subtitle: const Text('Completa los datos tú mismo', style: TextStyle(color: kMantTextoSuave)),
+              title: const Text(kTextoManualTitulo, style: TextStyle(color: kMantTexto)),
+              subtitle: const Text(kTextoManualDetalle, style: TextStyle(color: kMantTextoSuave)),
               onTap: () => Navigator.pop(sheetContext, 'manual'),
             ),
             ListTile(
               leading: const Icon(Icons.auto_awesome, color: kMantIA),
-              title: const Text('Escanear boleta o factura con IA', style: TextStyle(color: kMantTexto)),
-              subtitle: const Text('Fotografiar → revisar → guardar', style: TextStyle(color: kMantTextoSuave)),
+              isThreeLine: true,
+              title: const Text('Leer boleta o factura con IA', style: TextStyle(color: kMantTexto)),
+              subtitle: const Text(kTextoIaDetalle, style: TextStyle(color: kMantTextoSuave)),
               onTap: () => Navigator.pop(sheetContext, 'ia'),
             ),
             const SizedBox(height: 8),

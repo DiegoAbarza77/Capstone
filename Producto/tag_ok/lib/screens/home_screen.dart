@@ -18,6 +18,7 @@ import 'route_setup_screen.dart';
 import 'profile_screen.dart';
 import 'mi_auto_screen.dart';
 import 'audit_screen.dart';
+import '../widgets/inicio_accesos.dart';
 import '../data/models/route_model.dart';
 import '../data/models/trip_history.dart';
 import '../data/services/history_service.dart';
@@ -883,6 +884,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         
         // --- PANEL SUPERIOR FLOTANTE (Solo si no hay ruta activa) ---
         if (_currentRoute == null) _buildTopFloatingHeader(),
+        if (_currentRoute == null)
+          const Positioned(top: 96, left: 16, right: 16, child: InicioAccesos()),
 
         // --- PANEL INFERIOR DE RESUMEN (Solo si no hay ruta activa) ---
         if (_currentRoute == null) _buildBottomInfoCard(),

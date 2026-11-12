@@ -43,6 +43,42 @@ function isRateLimited(userId: string): boolean {
   return false;
 }
 
+// Anota cada llamada en la tabla uso_ia para el panel de administración. Es solo
+// un registro: si falla, la solicitud del usuario no debe fallar con él. Escribe
+// con la llave de servicio (ningún usuario puede insertar filas por su cuenta).
+// No guarda el contenido de lo enviado, solo datos de la llamada.
+async function registrarUso(fila: {
+  usuarioId: string;
+  resultado: "ok" | "error" | "limitado";
+  httpStatus?: number;
+  conArchivo: boolean;
+  tipoArchivo?: string;
+  promptChars: number;
+  duracionMs?: number;
+}): Promise<void> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !serviceKey) {
+      console.error("No se registró el uso de la IA: falta SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en la función.");
+      return;
+    }
+    const admin = createClient(url, serviceKey);
+    const { error } = await admin.from("uso_ia").insert({
+      usuario_id: fila.usuarioId,
+      resultado: fila.resultado,
+      http_status: fila.httpStatus ?? null,
+      con_archivo: fila.conArchivo,
+      tipo_archivo: fila.tipoArchivo ?? null,
+      prompt_chars: fila.promptChars,
+      duracion_ms: fila.duracionMs ?? null,
+    });
+    if (error) console.error("No se pudo registrar el uso de la IA:", error.message);
+  } catch (e) {
+    console.error("No se pudo registrar el uso de la IA:", e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -108,7 +144,16 @@ Deno.serve(async (req) => {
       return new Response("Archivo demasiado grande (máx. 8 MB)", { status: 413, headers: corsHeaders });
     }
   }
-  if (isRateLimited(callerData.user.id)) {
+  const usuarioId = callerData.user.id;
+  const conArchivo = Boolean(body.imageBase64);
+  const base = {
+    usuarioId,
+    conArchivo,
+    tipoArchivo: body.imageMimeType,
+    promptChars: body.prompt.length,
+  };
+  if (isRateLimited(usuarioId)) {
+    await registrarUso({ ...base, resultado: "limitado", httpStatus: 429 });
     return new Response("Demasiadas solicitudes, intenta en un minuto", {
       status: 429,
       headers: { ...corsHeaders, "Retry-After": "60" },
@@ -124,6 +169,7 @@ Deno.serve(async (req) => {
     });
   }
 
+  const inicio = Date.now();
   const geminiResponse = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
     {
@@ -144,6 +190,12 @@ Deno.serve(async (req) => {
 
   if (!geminiResponse.ok) {
     const errorText = await geminiResponse.text();
+    await registrarUso({
+      ...base,
+      resultado: "error",
+      httpStatus: geminiResponse.status,
+      duracionMs: Date.now() - inicio,
+    });
     return new Response(`Error de Gemini: ${errorText}`, { status: 502, headers: corsHeaders });
   }
 
@@ -156,12 +208,14 @@ Deno.serve(async (req) => {
     // 200 con texto vacío, que el cliente intentaría parsear como JSON
     // y fallaría con un mensaje confuso de "Unexpected end of input".
     const blockReason = geminiResult?.promptFeedback?.blockReason ?? "sin contenido";
+    await registrarUso({ ...base, resultado: "error", httpStatus: 502, duracionMs: Date.now() - inicio });
     return new Response(`Gemini no devolvió una respuesta utilizable (${blockReason})`, {
       status: 502,
       headers: corsHeaders,
     });
   }
 
+  await registrarUso({ ...base, resultado: "ok", duracionMs: Date.now() - inicio });
   return new Response(JSON.stringify({ text }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },

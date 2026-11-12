@@ -11,6 +11,7 @@ import 'beneficios_page.dart';
 import 'metricas_page.dart';
 import 'usuario_datos_dialog.dart';
 import 'usuarios_filtros_logica.dart';
+import 'uso_ia_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -132,6 +133,11 @@ class _AdminShellState extends State<AdminShell> {
         title: 'Métricas',
         icon: Icons.insights_outlined,
         pageBuilder: (s) => MetricasPage(service: s),
+      ),
+      SidebarItem(
+        title: 'Uso de IA',
+        icon: Icons.auto_awesome_outlined,
+        pageBuilder: (s) => UsoIaPage(service: s),
       ),
       SidebarItem(
         title: 'Beneficios',

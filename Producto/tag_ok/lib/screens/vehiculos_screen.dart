@@ -8,6 +8,7 @@ import '../data/services/vehiculo_documentos_service.dart';
 import 'ficha_vehiculo_screen.dart';
 import 'vehiculo_edicion.dart';
 import '../utils/patente_chile.dart';
+import '../utils/selector_archivo.dart';
 
 class VehiculosScreen extends StatefulWidget {
   const VehiculosScreen({super.key});
@@ -259,13 +260,7 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
                     Center(
                       child: GestureDetector(
                         onTap: () async {
-                          final picker = ImagePicker();
-                          final picked = await picker.pickImage(
-                            source: ImageSource.gallery,
-                            maxWidth: 800,
-                            maxHeight: 800,
-                            imageQuality: 85,
-                          );
+                          final picked = await elegirFotoConCamara(context, maxWidth: 800, maxHeight: 800);
                           if (picked != null) setModalState(() => fotoSeleccionada = picked);
                         },
                         child: FutureBuilder<Uint8List>(

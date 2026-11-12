@@ -40,8 +40,16 @@ Analiza el documento y extrae:
 3. "compania": la entidad emisora (nombre de la aseguradora, la
    municipalidad, o la planta de revisión técnica).
 4. "numero": el número de documento, folio o póliza.
-5. "fecha_emision": fecha de emisión en formato "YYYY-MM-DD".
-6. "fecha_vencimiento": fecha de vencimiento/caducidad en formato "YYYY-MM-DD".
+5. "fecha_emision": fecha en que parte el documento, en formato "YYYY-MM-DD".
+   Es la fecha de emisión o, en seguros y SOAP, la fecha de INICIO de la
+   vigencia. Búscala bajo nombres como "Inicio de vigencia", "Vigencia desde",
+   "Vigente desde", "Desde", "Fecha de inicio", "Inicio de cobertura",
+   "Fecha de emisión" o "Fecha de contratación". En pólizas la vigencia suele
+   venir como un rango ("Desde 01/03/2026 Hasta 01/03/2027"): la primera fecha
+   es el inicio y la segunda el vencimiento. Las fechas chilenas vienen como
+   día/mes/año (DD/MM/AAAA): conviértelas con cuidado.
+6. "fecha_vencimiento": fecha de vencimiento/caducidad en formato "YYYY-MM-DD"
+   (busca "Hasta", "Fin de vigencia", "Vence", "Término de vigencia").
 
 Usa null (no un string vacío) para cualquier campo que no puedas determinar
 con confianza -- es preferible dejarlo en blanco a inventar un dato.

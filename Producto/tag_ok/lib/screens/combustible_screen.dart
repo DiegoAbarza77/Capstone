@@ -10,6 +10,7 @@ import 'combustible_form_screen.dart';
 import 'mantencion_form_screen.dart' show ArchivoAdjunto, mimeDeArchivo;
 import 'mantencion_ui.dart';
 import '../utils/selector_archivo.dart';
+import '../utils/textos_carga.dart';
 
 const Color _kCombustible = Color(0xFF10B981);
 
@@ -82,14 +83,15 @@ class _CombustibleScreenState extends State<CombustibleScreen> {
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(Icons.edit_note_outlined, color: kMantPrimario),
-              title: const Text('Registro manual', style: TextStyle(color: kMantTexto)),
-              subtitle: const Text('Completa los datos que tengas a mano', style: TextStyle(color: kMantTextoSuave)),
+              title: const Text(kTextoManualTitulo, style: TextStyle(color: kMantTexto)),
+              subtitle: const Text(kTextoManualDetalle, style: TextStyle(color: kMantTextoSuave)),
               onTap: () => Navigator.pop(sheetContext, 'manual'),
             ),
             ListTile(
               leading: const Icon(Icons.auto_awesome, color: kMantIA),
-              title: const Text('Escanear boleta con IA', style: TextStyle(color: kMantTexto)),
-              subtitle: const Text('Fotografiar → revisar → guardar', style: TextStyle(color: kMantTextoSuave)),
+              isThreeLine: true,
+              title: const Text('Leer boleta con IA', style: TextStyle(color: kMantTexto)),
+              subtitle: const Text(kTextoIaDetalle, style: TextStyle(color: kMantTextoSuave)),
               onTap: () => Navigator.pop(sheetContext, 'ia'),
             ),
             const SizedBox(height: 8),

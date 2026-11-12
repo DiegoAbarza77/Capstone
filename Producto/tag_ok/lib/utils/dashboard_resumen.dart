@@ -32,16 +32,17 @@ bool _mismoMes(DateTime f, DateTime mes) => f.year == mes.year && f.month == mes
 
 /// Peajes del mes de la patente indicada. Los viajes guardan el vehículo como
 /// "Marca (PATENTE)", así que se busca la patente dentro de ese nombre.
-double gastoTagDelMes(Iterable<TripHistory> viajes, String patente, DateTime mes) {
+double gastoTagDelMes(Iterable<TripHistory> viajes, String patente, DateTime? mes) {
   final p = patente.trim().toUpperCase();
   if (p.isEmpty) return 0;
   return viajes
-      .where((v) => _mismoMes(v.date, mes) && v.vehicleName.toUpperCase().contains(p))
+      .where((v) => (mes == null || _mismoMes(v.date, mes)) && v.vehicleName.toUpperCase().contains(p))
       .fold<double>(0, (suma, v) => suma + v.totalCost);
 }
 
+/// Si [mes] es null suma todo el historial en vez de un solo mes.
 GastosMes calcularGastosMes({
-  required DateTime mes,
+  required DateTime? mes,
   required String patente,
   Iterable<TripHistory> viajes = const [],
   List<CargaCombustibleModel> cargas = const [],
@@ -50,9 +51,10 @@ GastosMes calcularGastosMes({
 }) {
   return GastosMes(
     tag: gastoTagDelMes(viajes, patente, mes),
-    combustible: gastoTotal(cargasDelMes(cargas, mes)),
-    estacionamientos: gastoEstacionamientos(estacionamientosDelMes(estacionamientos, mes)),
-    mantenciones: costoTotalMantenciones(mantenciones.where((m) => _mismoMes(m.fecha, mes))),
+    combustible: gastoTotal(mes == null ? cargas : cargasDelMes(cargas, mes)),
+    estacionamientos:
+        gastoEstacionamientos(mes == null ? estacionamientos : estacionamientosDelMes(estacionamientos, mes)),
+    mantenciones: costoTotalMantenciones(mes == null ? mantenciones : mantenciones.where((m) => _mismoMes(m.fecha, mes))),
   );
 }
 

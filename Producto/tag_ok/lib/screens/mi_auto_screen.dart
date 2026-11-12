@@ -399,7 +399,7 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
   }
 
   Widget _buildTarjetas(List<DocumentoVehiculoModel> documentos, List<EvaluacionProgramada> evaluaciones) {
-    final gastos = _gastosMes();
+    final gastos = _gastosMes(DateTime.now());
     final mantencion = resumenProximaMantencion(evaluaciones);
     final dias = diasProximoVencimiento(documentos);
     final String textoVenc;
@@ -451,8 +451,54 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
     );
   }
 
-  GastosMes _gastosMes() => calcularGastosMes(
-        mes: DateTime.now(),
+  /// Mes que muestra "Gastos"; null = todo el historial.
+  DateTime? _mesGastos = DateTime.now();
+
+  void _moverMes(int delta) {
+    final m = _mesGastos ?? DateTime.now();
+    final nuevo = DateTime(m.year, m.month + delta);
+    final ahora = DateTime.now();
+    if (nuevo.isAfter(DateTime(ahora.year, ahora.month))) return;
+    setState(() => _mesGastos = nuevo);
+  }
+
+  bool get _esMesActual {
+    final m = _mesGastos;
+    final a = DateTime.now();
+    return m != null && m.year == a.year && m.month == a.month;
+  }
+
+  Widget _selectorMes() {
+    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    final m = _mesGastos;
+    final texto = m == null ? 'Todo el historial' : '${meses[m.month - 1]} ${m.year}';
+    return Row(
+      children: [
+        IconButton(
+          tooltip: 'Mes anterior',
+          visualDensity: VisualDensity.compact,
+          onPressed: () => _moverMes(-1),
+          icon: const Icon(Icons.chevron_left, color: _textMain),
+        ),
+        Expanded(
+          child: Text(texto, textAlign: TextAlign.center, style: const TextStyle(color: _textMain, fontSize: 13, fontWeight: FontWeight.w600)),
+        ),
+        IconButton(
+          tooltip: 'Mes siguiente',
+          visualDensity: VisualDensity.compact,
+          onPressed: m == null || _esMesActual ? null : () => _moverMes(1),
+          icon: const Icon(Icons.chevron_right, color: _textMain),
+        ),
+        TextButton(
+          onPressed: () => setState(() => _mesGastos = m == null ? DateTime.now() : null),
+          child: Text(m == null ? 'Por mes' : 'Todo'),
+        ),
+      ],
+    );
+  }
+
+  GastosMes _gastosMes([DateTime? mes]) => calcularGastosMes(
+        mes: mes,
         patente: _patente,
         viajes: _viajes,
         cargas: _cargas,
@@ -461,7 +507,7 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
       );
 
   Widget _buildGastosMes() {
-    final g = _gastosMes();
+    final g = _gastosMes(_mesGastos);
     final filas = [
       ('TAG', g.tag, _primaryColor),
       ('Combustible', g.combustible, _accentColor),
@@ -478,8 +524,10 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Gastos del mes', style: TextStyle(color: _textMain, fontSize: 15, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
+          Text(_mesGastos == null ? 'Gastos' : (_esMesActual ? 'Gastos del mes' : 'Gastos por mes'),
+              style: const TextStyle(color: _textMain, fontSize: 15, fontWeight: FontWeight.bold)),
+          _selectorMes(),
+          const SizedBox(height: 6),
           for (final (nombre, monto, color) in filas)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -515,6 +563,12 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
                   ),
                 ],
               ),
+            ),
+          if (g.total <= 0 && _mesGastos != null && (_cargas.isNotEmpty || _estacionamientos.isNotEmpty || _mantenciones.isNotEmpty))
+            const Text(
+              'No hay gastos en este mes. Tienes registros de otros meses: '
+              'cambia de mes o toca "Todo" para verlos.',
+              style: TextStyle(color: _textMuted, fontSize: 12),
             ),
         ],
       ),

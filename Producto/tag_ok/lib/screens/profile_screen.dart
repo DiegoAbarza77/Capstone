@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../presentation/providers/auth_provider.dart';
+import '../utils/selector_archivo.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -500,13 +501,7 @@ class ProfileScreen extends ConsumerWidget {
 
   // --- SELECCIONAR Y SUBIR UNA FOTO DE PERFIL A SUPABASE STORAGE ---
   Future<void> _cambiarFotoPerfil(BuildContext context, String uid) async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 640,
-      maxHeight: 640,
-      imageQuality: 85,
-    );
+    final XFile? picked = await elegirFotoConCamara(context, maxWidth: 640, maxHeight: 640);
     if (picked == null) return;
     if (!context.mounted) return;
 

@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'beneficio_logica.dart';
 import 'metricas_logica.dart';
+import 'uso_ia_logica.dart';
 import 'usuario_datos_logica.dart';
 
 class AdminOverview {
@@ -363,6 +364,31 @@ class AdminSupabaseService {
       if (destacado != null) destacado ? 'marcado como destacado' : 'quitado de destacados',
     ].join(', ');
     await _registrarSinFallar(action: 'Cambiar beneficio', target: beneficio.titulo, details: detalle);
+  }
+
+  /// Resume el uso de la IA entre [desde] y [hasta], a partir del registro que
+  /// deja la función gemini-proxy (tabla uso_ia). Trae también el nombre y el
+  /// correo de los usuarios que encabezan la lista, nada más.
+  Future<UsoIaDatos> fetchUsoIa({required DateTime desde, required DateTime hasta}) async {
+    final limites = limitesDelPeriodo(desde, hasta);
+    final filas = await _traerTodo(
+      'uso_ia',
+      'id, usuario_id, created_at, resultado, http_status, con_archivo, duracion_ms',
+      columnaFecha: 'created_at',
+      inicio: limites.inicio,
+      fin: limites.fin,
+    );
+    final resumen = resumenUsoIa(filas, desde: desde, hasta: hasta);
+
+    final ids = [for (final u in resumen.topUsuarios) u.usuarioId];
+    final usuarios = <String, Map<String, dynamic>>{};
+    if (ids.isNotEmpty) {
+      final datos = await _client.from('usuarios').select('id, nombre_mostrar, email').inFilter('id', ids);
+      for (final fila in datos) {
+        usuarios[fila['id'].toString()] = Map<String, dynamic>.from(fila);
+      }
+    }
+    return UsoIaDatos(resumen: resumen, usuarios: usuarios);
   }
 
   /// La bitácora es un registro auxiliar: si falla, la acción que ya se hizo no

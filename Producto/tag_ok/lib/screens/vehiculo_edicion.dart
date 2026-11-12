@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/vehiculo_model.dart';
 import '../utils/numero_chile.dart';
 import '../utils/patente_chile.dart';
+import '../utils/selector_archivo.dart';
 
 const Color _bgColor = Color(0xFF0F172A);
 const Color _primaryColor = Color(0xFF4F46E5);
@@ -163,13 +164,7 @@ void mostrarFormularioEditarVehiculo(BuildContext context, Map<String, dynamic> 
       return StatefulBuilder(
         builder: (context, setModalState) {
           Future<void> cambiarFoto() async {
-            final picker = ImagePicker();
-            final picked = await picker.pickImage(
-              source: ImageSource.gallery,
-              maxWidth: 800,
-              maxHeight: 800,
-              imageQuality: 85,
-            );
+            final picked = await elegirFotoConCamara(context, maxWidth: 800, maxHeight: 800);
             if (picked == null) return;
             setModalState(() => subiendoFoto = true);
             try {
