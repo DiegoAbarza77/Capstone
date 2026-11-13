@@ -459,14 +459,14 @@ class _EstacionamientosScreenState extends State<EstacionamientosScreen> {
               if (enCurso != null) _buildEnCurso(enCurso) else _buildIniciar(),
               if (enCurso != null && enCurso.tieneUbicacion) ...[
                 const SizedBox(height: 16),
-                const Text('Tu auto está aquí', style: TextStyle(color: kMantTextoSuave, fontSize: 13)),
+                const Text('Tu auto está aquí', style: TextStyle(color: kMantTexto, fontSize: 15, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 MapaUbicacion(lat: enCurso.lat!, lng: enCurso.lng!),
               ],
               const SizedBox(height: 24),
               _buildResumen(delMes),
               const SizedBox(height: 24),
-              const Text('Historial', style: TextStyle(color: kMantTextoSuave, fontSize: 13)),
+              const Text('Historial', style: TextStyle(color: kMantTexto, fontSize: 15, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               if (delMes.isEmpty) _buildVacio() else for (final e in delMes) _buildItem(e),
             ],
@@ -703,16 +703,6 @@ class _EstacionamientosScreenState extends State<EstacionamientosScreen> {
           const Text('No hay estacionamientos registrados este mes',
               textAlign: TextAlign.center,
               style: TextStyle(color: kMantTexto, fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kMantPrimario,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: _elegirMetodo,
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: const Text('Agregar estacionamiento', style: TextStyle(color: Colors.white)),
-          ),
         ],
       ),
     );

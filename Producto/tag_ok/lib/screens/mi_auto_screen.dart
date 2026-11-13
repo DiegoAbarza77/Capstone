@@ -19,13 +19,10 @@ import '../data/services/mantencion_service.dart';
 import '../data/services/vehiculo_documentos_service.dart';
 import '../utils/mantencion_calculos.dart';
 import 'beneficios_screen.dart';
-import 'combustible_form_screen.dart';
 import 'combustible_screen.dart';
 import 'documentos_vehiculo_screen.dart';
-import 'estacionamiento_form_screen.dart';
 import 'estacionamientos_screen.dart';
 import 'ficha_vehiculo_screen.dart';
-import 'mantencion_form_screen.dart';
 import 'mantencion_ui.dart';
 import 'mantenciones_screen.dart';
 import 'vehiculos_screen.dart';
@@ -382,12 +379,7 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
                     _buildTarjetas(documentos, [for (final (_, e) in programadas) e]),
                     const SizedBox(height: 16),
                     _buildGastosMes(),
-                    const SizedBox(height: 16),
-                    _buildAccionesRapidas(),
-                    const SizedBox(height: 24),
-                    const Text('Módulos', style: TextStyle(color: _textMuted, fontSize: 13)),
-                    const SizedBox(height: 10),
-                    _buildModulos(documentos, [for (final (_, e) in programadas) e], enCurso != null),
+                    ..._buildModulos(documentos, [for (final (_, e) in programadas) e], enCurso != null),
                   ],
                 );
               },
@@ -575,56 +567,6 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
     );
   }
 
-  Widget _buildAccionesRapidas() {
-    Widget boton(IconData icono, String texto, VoidCallback onTap) => ActionChip(
-          avatar: Icon(icono, size: 18, color: Colors.white),
-          label: Text(texto),
-          onPressed: onTap,
-          backgroundColor: _navBgColor,
-          labelStyle: const TextStyle(color: _textMain, fontWeight: FontWeight.w600),
-          side: BorderSide(color: _primaryColor.withValues(alpha: 0.5)),
-        );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Acciones rápidas', style: TextStyle(color: _textMuted, fontSize: 13)),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            boton(
-              Icons.local_gas_station_outlined,
-              'Registrar combustible',
-              () => _ir(CombustibleFormScreen(
-                vehiculoId: _vehiculoId,
-                patente: _patente,
-                combustibleDelVehiculo: widget.vehiculo['tipo_combustible'] as String?,
-                kmActualVehiculo: _kmActual,
-              )),
-            ),
-            boton(
-              Icons.local_parking_outlined,
-              'Registrar estacionamiento',
-              () => _ir(EstacionamientoFormScreen(vehiculoId: _vehiculoId, patente: _patente)),
-            ),
-            boton(
-              Icons.build_outlined,
-              'Agregar mantención',
-              () => _ir(MantencionFormScreen(
-                vehiculoId: _vehiculoId,
-                patente: _patente,
-                kmActualVehiculo: _kmActual,
-                historial: _mantenciones,
-              )),
-            ),
-            boton(Icons.card_giftcard_outlined, 'Ver beneficios', () => _ir(const BeneficiosScreen())),
-          ],
-        ),
-      ],
-    );
-  }
-
   void _abrirMantenciones() => _ir(MantencionesScreen(vehiculoId: _vehiculoId, patente: _patente));
 
   void _abrirEstacionamientos() => _ir(EstacionamientosScreen(vehiculoId: _vehiculoId, patente: _patente));
@@ -777,78 +719,81 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
     if (proximas > 0) {
       return ('$proximas ${proximas == 1 ? 'próxima' : 'próximas'}', colorEstadoProgramada(EstadoProgramada.proxima));
     }
-    return ('Historial y recordatorios', _textMuted);
+    return ('Sin pendientes', _accentColor);
   }
 
-  Widget _buildModulos(
+  Widget _seccion(String titulo) => Padding(
+        padding: const EdgeInsets.only(top: 20, bottom: 8),
+        child: Text(titulo, style: const TextStyle(color: _textMuted, fontSize: 13)),
+      );
+
+  List<Widget> _buildModulos(
     List<DocumentoVehiculoModel> documentos,
     List<EvaluacionProgramada> mantenciones,
     bool estacionamientoEnCurso,
   ) {
     final (textoDocs, colorDocs) = _resumenDocumentos(documentos);
     final (textoMant, colorMant) = _resumenMantenciones(mantenciones);
+    final beneficios = _beneficiosDisponibles;
 
-    final tiles = [
-      _ModuloTile(
+    Widget gap(Widget w) => Padding(padding: const EdgeInsets.only(bottom: 8), child: w);
+
+    return [
+      _seccion('Módulos'),
+      gap(_ModuloFila(
         icono: Icons.description_outlined,
         titulo: 'Documentos',
-        subtitulo: textoDocs,
-        colorSubtitulo: colorDocs,
+        descripcion: 'Permiso, revisión técnica, SOAP y seguro',
+        estado: textoDocs,
+        colorEstado: colorDocs,
         color: _primaryColor,
         onTap: () => _ir(DocumentosVehiculoScreen(vehiculoId: _vehiculoId, patente: _patente)),
-      ),
-      _ModuloTile(
-        icono: Icons.local_gas_station_outlined,
-        titulo: 'Combustible',
-        subtitulo: 'Cargas y gasto',
-        color: _accentColor,
-        onTap: () => _ir(CombustibleScreen(vehiculoId: _vehiculoId, patente: _patente)),
-      ),
-      _ModuloTile(
+      )),
+      gap(_ModuloFila(
         icono: Icons.build_outlined,
         titulo: 'Mantenciones',
-        subtitulo: textoMant,
-        colorSubtitulo: colorMant,
+        descripcion: 'Servicios y recordatorios',
+        estado: textoMant,
+        colorEstado: colorMant,
         color: const Color(0xFFF59E0B),
         onTap: _abrirMantenciones,
-      ),
-      _ModuloTile(
+      )),
+      gap(_ModuloFila(
+        icono: Icons.local_gas_station_outlined,
+        titulo: 'Combustible',
+        descripcion: 'Cargas, gasto y rendimiento',
+        estado: 'Cargas y gasto',
+        color: _accentColor,
+        onTap: () => _ir(CombustibleScreen(vehiculoId: _vehiculoId, patente: _patente)),
+      )),
+      gap(_ModuloFila(
         icono: Icons.local_parking_outlined,
         titulo: 'Estacionamientos',
-        subtitulo: estacionamientoEnCurso ? 'En curso' : 'Cronómetro e historial',
-        colorSubtitulo: estacionamientoEnCurso ? _colorCronometro : null,
+        descripcion: 'Cronómetro y lo que pagas',
+        estado: estacionamientoEnCurso ? 'En curso' : 'Cronómetro e historial',
+        colorEstado: estacionamientoEnCurso ? _colorCronometro : null,
         color: _colorCronometro,
         onTap: _abrirEstacionamientos,
-      ),
-      _ModuloTile(
+      )),
+      gap(_ModuloFila(
         icono: Icons.card_giftcard_outlined,
         titulo: 'Beneficios',
-        subtitulo: _beneficiosDisponibles == null
+        descripcion: 'Descuentos y alianzas',
+        estado: beneficios == null
             ? 'Descuentos y alianzas'
-            : (_beneficiosDisponibles == 0
-                ? 'Sin beneficios por ahora'
-                : '$_beneficiosDisponibles ${_beneficiosDisponibles == 1 ? 'disponible' : 'disponibles'}'),
+            : (beneficios == 0 ? 'Sin beneficios por ahora' : '$beneficios ${beneficios == 1 ? 'disponible' : 'disponibles'}'),
         color: const Color(0xFFEC4899),
         onTap: () => _ir(const BeneficiosScreen()),
-      ),
-      _ModuloTile(
+      )),
+      gap(_ModuloFila(
         icono: Icons.directions_car_outlined,
         titulo: 'Mis vehículos',
-        subtitulo: '${widget.totalVehiculos} ${widget.totalVehiculos == 1 ? 'registrado' : 'registrados'}',
+        descripcion: 'Agrega o edita tus vehículos',
+        estado: '${widget.totalVehiculos} ${widget.totalVehiculos == 1 ? 'registrado' : 'registrados'}',
         color: _textMuted,
         onTap: widget.onMisVehiculos,
-      ),
+      )),
     ];
-
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.3,
-      children: tiles,
-    );
   }
 }
 
@@ -913,21 +858,24 @@ class _TarjetaIndicador extends StatelessWidget {
   }
 }
 
-class _ModuloTile extends StatelessWidget {
+/// Un módulo como fila completa: ícono, nombre, qué hace en una línea y su estado.
+class _ModuloFila extends StatelessWidget {
   final IconData icono;
   final String titulo;
-  final String subtitulo;
-  final Color? colorSubtitulo;
+  final String descripcion;
+  final String estado;
+  final Color? colorEstado;
   final Color color;
   final VoidCallback onTap;
 
-  const _ModuloTile({
+  const _ModuloFila({
     required this.icono,
     required this.titulo,
-    required this.subtitulo,
+    required this.descripcion,
+    required this.estado,
     required this.color,
     required this.onTap,
-    this.colorSubtitulo,
+    this.colorEstado,
   });
 
   @override
@@ -944,36 +892,30 @@ class _ModuloTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+                child: Icon(icono, color: color, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(titulo, style: const TextStyle(color: _textMain, fontSize: 16, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 2),
+                    Text(descripcion, style: const TextStyle(color: _textMuted, fontSize: 12.5, height: 1.3)),
+                    const SizedBox(height: 4),
+                    Text(estado,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: colorEstado ?? color, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                  ],
                 ),
-                child: Icon(icono, color: color, size: 22),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    titulo,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: _textMain, fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitulo,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: colorSubtitulo ?? _textMuted, fontSize: 12),
-                  ),
-                ],
-              ),
+              const Icon(Icons.chevron_right, color: _textMuted),
             ],
           ),
         ),

@@ -446,7 +446,7 @@ class _CombustibleScreenState extends State<CombustibleScreen> {
         _buildResumen(delMes),
         _buildRendimiento(todas),
         const SizedBox(height: 24),
-        const Text('Historial de cargas', style: TextStyle(color: kMantTextoSuave, fontSize: 13)),
+        const Text('Historial de cargas', style: TextStyle(color: kMantTexto, fontSize: 15, fontWeight: FontWeight.bold)),
         const SizedBox(height: 10),
         if (delMes.isEmpty)
           _buildVacio(combustible, kmActual)
@@ -585,19 +585,9 @@ class _CombustibleScreenState extends State<CombustibleScreen> {
         children: [
           Icon(Icons.local_gas_station_outlined, size: 48, color: Colors.white.withValues(alpha: 0.15)),
           const SizedBox(height: 12),
-          const Text('No hay abastecimientos registrados en este periodo',
+          const Text('No hay cargas registradas este mes',
               textAlign: TextAlign.center,
               style: TextStyle(color: kMantTexto, fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kMantPrimario,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => _elegirMetodo(combustible: combustible, kmActual: kmActual),
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: const Text('Registrar carga', style: TextStyle(color: Colors.white)),
-          ),
         ],
       ),
     );

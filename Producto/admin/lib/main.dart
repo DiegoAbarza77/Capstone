@@ -4862,9 +4862,14 @@ class _AuditLogPageState extends State<AuditLogPage> {
     return true;
   }
 
+  /// "06/11/2026 02:09" en la hora del equipo, en vez del texto crudo de la base.
   String _formatFecha(dynamic dateVal) {
     if (dateVal == null) return '-';
-    return dateVal.toString();
+    final f = DateTime.tryParse(dateVal.toString());
+    if (f == null) return dateVal.toString();
+    final l = f.toLocal();
+    String d(int n) => n.toString().padLeft(2, '0');
+    return '${d(l.day)}/${d(l.month)}/${l.year} ${d(l.hour)}:${d(l.minute)}';
   }
 
   Widget _getActionBadge(String action) {
@@ -4896,6 +4901,36 @@ class _AuditLogPageState extends State<AuditLogPage> {
         bgColor = const Color(0xFFFFEDD5);
         textColor = const Color(0xFFEA580C);
         label = 'Eliminar Pórtico';
+        break;
+      case 'SUSPEND_USER':
+        bgColor = const Color(0xFFFEE2E2);
+        textColor = const Color(0xFFDC2626);
+        label = 'Suspender Usuario';
+        break;
+      case 'REACTIVATE_USER':
+        bgColor = const Color(0xFFDCFCE7);
+        textColor = const Color(0xFF15803D);
+        label = 'Reactivar Usuario';
+        break;
+      case 'CREATE_ADMIN':
+        bgColor = const Color(0xFFE0E7FF);
+        textColor = const Color(0xFF4338CA);
+        label = 'Crear Admin';
+        break;
+      case 'EDIT_ADMIN_ROLE':
+        bgColor = const Color(0xFFE0E7FF);
+        textColor = const Color(0xFF4338CA);
+        label = 'Cambiar Rol de Admin';
+        break;
+      case 'DELETE_ADMIN':
+        bgColor = const Color(0xFFFEE2E2);
+        textColor = const Color(0xFFDC2626);
+        label = 'Eliminar Admin';
+        break;
+      case 'RESET_ADMIN_PASSWORD':
+        bgColor = const Color(0xFFFEF3C7);
+        textColor = const Color(0xFFD97706);
+        label = 'Resetear Clave de Admin';
         break;
       default:
         bgColor = const Color(0xFFF1F5F9);

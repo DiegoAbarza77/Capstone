@@ -721,14 +721,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Icon(
               icon,
               color: isSelected ? primaryColor : textMuted,
-              size: 26,
+              size: 28,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
                 color: isSelected ? primaryColor : textMuted,
-                fontSize: 10,
+                fontSize: 11.5,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
               maxLines: 1,

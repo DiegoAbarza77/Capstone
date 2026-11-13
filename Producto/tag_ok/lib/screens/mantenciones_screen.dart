@@ -550,14 +550,14 @@ class _MantencionesScreenState extends State<MantencionesScreen> {
             const SizedBox(height: 8),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: kMantPrimario,
-                side: const BorderSide(color: kMantPrimario),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                foregroundColor: const Color(0xFFC7D2FE),
+                side: const BorderSide(color: Color(0xFF818CF8)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () => _programar(kmActual: kmActual),
               icon: const Icon(Icons.event_available_outlined),
-              label: const Text('Programar próxima mantención'),
+              label: const Text('Programar un recordatorio'),
             ),
             const SizedBox(height: 24),
             _tituloSeccion('Historial'),
@@ -574,7 +574,7 @@ class _MantencionesScreenState extends State<MantencionesScreen> {
 
   Widget _tituloSeccion(String texto) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
-        child: Text(texto, style: const TextStyle(color: kMantTextoSuave, fontSize: 13)),
+        child: Text(texto, style: const TextStyle(color: kMantTexto, fontSize: 15, fontWeight: FontWeight.bold)),
       );
 
   Widget _buildResumen(List<MantencionModel> historial) {
@@ -705,22 +705,12 @@ class _MantencionesScreenState extends State<MantencionesScreen> {
         children: [
           Icon(Icons.build_outlined, size: 48, color: Colors.white.withValues(alpha: 0.15)),
           const SizedBox(height: 12),
-          const Text('No existen servicios registrados en la bitácora',
+          const Text('Aún no registras mantenciones',
               textAlign: TextAlign.center,
               style: TextStyle(color: kMantTexto, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          const Text('Registra la primera mantención para empezar tu historial.',
+          const Text('Toca «Registrar mantención» abajo para guardar el primer servicio.',
               textAlign: TextAlign.center, style: TextStyle(color: kMantTextoSuave)),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kMantPrimario,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => _elegirMetodo(historial, kmActual),
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: const Text('Registrar mantención', style: TextStyle(color: Colors.white)),
-          ),
         ],
       ),
     );

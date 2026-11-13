@@ -115,21 +115,7 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
             children: [
               _buildResumen(doc),
               const SizedBox(height: 16),
-              _buildTarjetaArchivo(doc),
-              const SizedBox(height: 12),
-              _buildTarjetaSubirConIA(doc),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: primaryColor,
-                  side: BorderSide(color: primaryColor),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () => _mostrarFormularioDocumento(doc),
-                icon: const Icon(Icons.edit_outlined),
-                label: Text(_tieneDatos(doc) ? 'Editar datos manualmente' : 'Ingresar datos manualmente'),
-              ),
+              _buildAcciones(doc),
             ],
           );
         },
@@ -199,54 +185,137 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
     );
   }
 
-  Widget _buildTarjetaSubirConIA(DocumentoVehiculoModel doc) {
-    return InkWell(
-      onTap: _isProcessingIA ? null : () => _agregarDocumentoConIA(doc),
+  /// Debajo del resumen: el archivo guardado (si hay) y las dos formas de cargar
+  /// los datos, con el mismo formato y los mismos textos que los demás módulos.
+  Widget _buildAcciones(DocumentoVehiculoModel doc) {
+    final tieneDatos = _tieneDatos(doc);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildFilaArchivo(doc),
+        const SizedBox(height: 20),
+        Text(
+          tieneDatos ? 'Actualizar los datos' : 'Cargar los datos',
+          style: TextStyle(color: textMain, fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        _opcion(
+          icono: Icons.auto_awesome,
+          color: iaColor,
+          titulo: _isProcessingIA ? 'Analizando documento…' : 'Leer documento con IA',
+          detalle: kTextoIaDetalle,
+          cargando: _isProcessingIA,
+          onTap: _isProcessingIA || _subiendoArchivo ? null : () => _agregarDocumentoConIA(doc),
+        ),
+        const SizedBox(height: 10),
+        _opcion(
+          icono: Icons.edit_outlined,
+          color: primaryColor,
+          titulo: kTextoManualTitulo,
+          detalle: kTextoManualDetalle,
+          onTap: () => _mostrarFormularioDocumento(doc),
+        ),
+      ],
+    );
+  }
+
+  Widget _opcion({
+    required IconData icono,
+    required Color color,
+    required String titulo,
+    required String detalle,
+    required VoidCallback? onTap,
+    bool cargando = false,
+  }) {
+    return Material(
+      color: navBgColor,
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: iaColor.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: iaColor.withValues(alpha: 0.4)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              alignment: Alignment.center,
-              child: _isProcessingIA
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: iaColor),
-                    )
-                  : Icon(Icons.auto_awesome, color: iaColor, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _isProcessingIA
-                        ? 'Analizando documento…'
-                        : _tieneDatos(doc)
-                            ? 'Leer de nuevo con IA'
-                            : 'Leer documento con IA',
-                    style: TextStyle(color: iaColor, fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _tieneDatos(doc) ? kTextoIaDetalleReemplazo : kTextoIaDetalle,
-                    style: TextStyle(color: textMuted, fontSize: 12),
-                  ),
-                ],
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+                child: cargando
+                    ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: color))
+                    : Icon(icono, color: color, size: 24),
               ),
-            ),
-          ],
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(titulo, style: TextStyle(color: textMain, fontSize: 16, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 2),
+                    Text(detalle, style: TextStyle(color: textMuted, fontSize: 12.5, height: 1.3)),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: textMuted),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  /// El archivo del documento: si hay, verlo o quitarlo; si no, guardar uno sin
+  /// leerlo.
+  Widget _buildFilaArchivo(DocumentoVehiculoModel doc) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: navBgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Row(
+        children: [
+          Icon(doc.tieneArchivo ? Icons.attach_file : Icons.insert_drive_file_outlined, color: textMuted, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(doc.tieneArchivo ? 'Archivo guardado' : 'Sin archivo guardado',
+                    style: TextStyle(color: textMain, fontWeight: FontWeight.w600, fontSize: 13.5)),
+                if (doc.tieneArchivo)
+                  Text(doc.archivoNombre ?? 'Archivo adjunto',
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textMuted, fontSize: 12)),
+              ],
+            ),
+          ),
+          if (_subiendoArchivo)
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else if (doc.tieneArchivo) ...[
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: const Color(0xFFA5B4FC)),
+              onPressed: () => _verArchivo(doc),
+              child: const Text('Ver'),
+            ),
+            IconButton(
+              tooltip: 'Quitar archivo',
+              onPressed: () => _quitarArchivo(doc),
+              icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444), size: 20),
+            ),
+          ] else
+            TextButton(
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFA5B4FC)),
+            onPressed: () => _adjuntarArchivo(doc),
+            child: const Text('Adjuntar'),
+          ),
+        ],
       ),
     );
   }
@@ -523,89 +592,6 @@ class _DocumentoDetalleScreenState extends State<DocumentoDetalleScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(mensaje), backgroundColor: error ? Colors.redAccent : accentColor),
-    );
-  }
-
-  /// Tarjeta con el archivo original del documento: verlo, reemplazarlo,
-  /// quitarlo o, si no hay, adjuntar una foto o un PDF.
-  Widget _buildTarjetaArchivo(DocumentoVehiculoModel doc) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: navBgColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(doc.tieneArchivo ? Icons.attach_file : Icons.insert_drive_file_outlined, color: textMuted, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Archivo del documento',
-                        style: TextStyle(color: textMain, fontWeight: FontWeight.bold, fontSize: 14)),
-                    const SizedBox(height: 2),
-                    Text(
-                      doc.tieneArchivo ? (doc.archivoNombre ?? 'Archivo adjunto') : 'Todavía no hay foto ni PDF guardado',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: textMuted, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              if (_subiendoArchivo)
-                SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: primaryColor),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (doc.tieneArchivo)
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: accentColor,
-                    side: BorderSide(color: accentColor),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: _subiendoArchivo ? null : () => _verArchivo(doc),
-                  icon: const Icon(Icons.visibility_outlined, size: 18),
-                  label: const Text('Ver archivo'),
-                ),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: primaryColor,
-                  side: BorderSide(color: primaryColor),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: _subiendoArchivo ? null : () => _adjuntarArchivo(doc),
-                icon: const Icon(Icons.upload_file_outlined, size: 18),
-                label: Text(doc.tieneArchivo ? 'Cambiar archivo' : 'Adjuntar foto o PDF'),
-              ),
-              if (doc.tieneArchivo)
-                TextButton.icon(
-                  style: TextButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
-                  onPressed: _subiendoArchivo ? null : () => _quitarArchivo(doc),
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('Quitar'),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(kTextoSoloGuardarArchivo, style: TextStyle(color: textMuted, fontSize: 12)),
-        ],
-      ),
     );
   }
 
