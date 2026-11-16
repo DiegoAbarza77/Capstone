@@ -171,6 +171,10 @@ class _MantencionesScreenState extends State<MantencionesScreen> {
     }
     if (!mounted) return;
 
+    // Vuelve a pedir los datos: si Realtime no avisa del cambio, la lista
+    // y el gasto total se quedarían con lo anterior hasta recargar la app.
+    setState(_crearStreams);
+
     final guardada = resultado.mantencion;
     final partes = <String>[existente != null ? 'Mantención actualizada' : 'Mantención guardada'];
     if (resultado.odometroActualizado && guardada.kilometraje != null) {

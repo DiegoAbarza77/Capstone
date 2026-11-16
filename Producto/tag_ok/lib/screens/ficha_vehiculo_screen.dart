@@ -6,13 +6,11 @@ import '../data/services/vehiculo_documentos_service.dart';
 import '../data/services/vehiculo_service.dart';
 import 'combustible_screen.dart';
 import 'documento_detalle_screen.dart';
-import 'documentos_vehiculo_screen.dart';
 import 'estacionamientos_screen.dart';
 import 'mantenciones_screen.dart';
 import 'vehiculo_edicion.dart';
 
 const Color _bgColor = Color(0xFF0F172A);
-const Color _primaryColor = Color(0xFF4F46E5);
 const Color _navBgColor = Color(0xFF1E293B);
 const Color _textMuted = Color(0xFF94A3B8);
 const Color _textMain = Color(0xFFF8FAFC);
@@ -306,34 +304,35 @@ class _FichaVehiculoScreenState extends State<FichaVehiculoScreen> {
       ('Kilometraje', kmTexto),
     ];
 
-    return Row(
-      children: [
-        for (var i = 0; i < datos.length; i++) ...[
-          if (i > 0) const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-              decoration: BoxDecoration(
-                color: _navBgColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-              ),
-              child: Column(
-                children: [
-                  Text(datos[i].$1, style: const TextStyle(color: _textMuted, fontSize: 11)),
-                  const SizedBox(height: 4),
-                  Text(
-                    datos[i].$2,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: _textMain, fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
+    Widget tarjeta((String, String) d) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: _navBgColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(d.$1, style: const TextStyle(color: _textMuted, fontSize: 12)),
+                const SizedBox(height: 4),
+                Text(
+                  d.$2,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: _textMain, fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
           ),
-        ],
+        );
+
+    return Column(
+      children: [
+        Row(children: [tarjeta(datos[0]), const SizedBox(width: 8), tarjeta(datos[1])]),
+        const SizedBox(height: 8),
+        Row(children: [tarjeta(datos[2]), const SizedBox(width: 8), tarjeta(datos[3])]),
       ],
     );
   }
@@ -404,16 +403,13 @@ class _FichaVehiculoScreenState extends State<FichaVehiculoScreen> {
             acceso('Combustible', Icons.local_gas_station_outlined, _accentColor,
                 () => CombustibleScreen(vehiculoId: widget.vehiculoId, patente: patente)),
             const SizedBox(width: 10),
-            acceso('Documentos', Icons.description_outlined, _primaryColor,
-                () => DocumentosVehiculoScreen(vehiculoId: widget.vehiculoId, patente: patente)),
+            acceso('Mantenciones', Icons.build_outlined, const Color(0xFFF59E0B),
+                () => MantencionesScreen(vehiculoId: widget.vehiculoId, patente: patente)),
           ],
         ),
         const SizedBox(height: 10),
         Row(
           children: [
-            acceso('Mantenciones', Icons.build_outlined, const Color(0xFFF59E0B),
-                () => MantencionesScreen(vehiculoId: widget.vehiculoId, patente: patente)),
-            const SizedBox(width: 10),
             acceso('Estacionamientos', Icons.local_parking_outlined, const Color(0xFF38BDF8),
                 () => EstacionamientosScreen(vehiculoId: widget.vehiculoId, patente: patente)),
           ],

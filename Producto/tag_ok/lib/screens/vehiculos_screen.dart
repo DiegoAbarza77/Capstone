@@ -97,9 +97,9 @@ class _VehiculosScreenState extends State<VehiculosScreen> {
     final marca = _marcaController.text.trim();
     final user = Supabase.instance.client.auth.currentUser;
 
-    if (patente.isEmpty || user == null) return false;
+    if (user == null) return false;
 
-    // Validación de patente (autos y motos, formatos actual y antiguo)
+    // Validación de patente (una patente vacía también cae aquí y avisa) (autos y motos, formatos actual y antiguo)
     if (!esPatenteValida(patente)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

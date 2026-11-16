@@ -44,7 +44,7 @@
 
 ## Estado del proyecto
 
-Este README refleja el estado del código y de las pruebas, actualizado el **21 de octubre de 2026**. Los módulos de la Fase 2 están **implementados y cubiertos por pruebas automáticas**. Se recorrieron en pantalla, en la versión web con un usuario de prueba, Mi Auto, Combustible, Estacionamientos, Mantenciones y Beneficios, y en el panel, Beneficios, Métricas y el listado de Usuarios. **Falta probar en un celular real** el GPS, el cronómetro y los recordatorios. La base de datos va hasta la migración **0017**. Los porcentajes de avance son estimaciones.
+Este README refleja el estado del código y de las pruebas, actualizado el **21 de octubre de 2026**. Los módulos de la Fase 2 están **implementados y cubiertos por pruebas automáticas**. Se recorrieron en pantalla, en la versión web con un usuario de prueba, Mi Auto, Combustible, Estacionamientos, Mantenciones y Beneficios, y en el panel, Beneficios, Métricas y el listado de Usuarios. **Falta probar en un celular real** el GPS, el cronómetro y los recordatorios. La base de datos va hasta la migración **0019**. Los porcentajes de avance son estimaciones.
 
 | Módulo | Estado |
 | :----- | :----- |
@@ -245,7 +245,7 @@ La migración de Firebase a Supabase no fue solo un cambio de proveedor — se a
 
 * [Flutter](https://flutter.dev/) y Dart (vienen juntos).
 * Git.
-* Una cuenta/proyecto en [Supabase](https://supabase.com/) (gratis, sin tarjeta) con todas las migraciones SQL de `Producto/supabase/migrations/` aplicadas en orden (0001 a 0017) y las 3 Edge Functions de `Producto/supabase/functions/` desplegadas.
+* Una cuenta/proyecto en [Supabase](https://supabase.com/) (gratis, sin tarjeta) con todas las migraciones SQL de `Producto/supabase/migrations/` aplicadas en orden (0001 a 0019) y las 3 Edge Functions de `Producto/supabase/functions/` desplegadas.
 * Credenciales de Mapbox y Gemini (opcionales para probar solo Auth/datos; requeridas para mapas e IA).
 
 ### Pasos
@@ -314,7 +314,7 @@ TAG-OK2.1/
 │   ├── admin/                   # Panel de administración (Flutter)
 │   │
 │   ├── supabase/
-│   │   ├── migrations/          # Esquema SQL + RLS, numerado (0001 a 0017)
+│   │   ├── migrations/          # Esquema SQL + RLS, numerado (0001 a 0019)
 │   │   ├── functions/           # Edge Functions (create-admin, delete-user, gemini-proxy)
 │   │   └── seeds/               # Datos de ejemplo (beneficios)
 │   │

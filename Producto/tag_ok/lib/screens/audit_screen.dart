@@ -22,6 +22,7 @@ class _AuditScreenState extends State<AuditScreen> {
 
   // Subpestaña activa (0: Consumo e Historial, 1: Auditoría de Boletas)
   int _activeSubTab = 0;
+  Stream<List<Map<String, dynamic>>>? _invoicesStream;
   bool _isExtracting = false;
   bool _useAI = true;
 
@@ -1826,8 +1827,11 @@ Instrucciones para redactar el "aiReport":
       );
     }
 
+    // El stream se crea una sola vez: si se creara en cada build, cada
+    // redibujado abriría otra suscripción y el historial mostraría duplicados.
+    _invoicesStream ??= _getAuditedInvoices();
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _getAuditedInvoices(),
+      stream: _invoicesStream,
       builder: (context, snapshot) {
         final auditedInvoices = snapshot.data ?? [];
 

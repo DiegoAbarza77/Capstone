@@ -42,7 +42,7 @@ Producto/
 ├── tag_ok/      → app del conductor (Flutter)
 ├── admin/       → panel de administración (Flutter web)
 ├── supabase/
-│   ├── migrations/   → scripts SQL de la base de datos (0001 a 0017)
+│   ├── migrations/   → scripts SQL de la base de datos (0001 a 0019)
 │   └── functions/    → Edge Functions (gemini-proxy, create-admin, delete-user)
 └── setup.bat    → instalador de dependencias
 ```
@@ -62,7 +62,7 @@ Producto/
 
 ### 3.1 Aplicar las migraciones
 
-Las migraciones crean las tablas, las reglas de seguridad (RLS), los buckets de fotos y cargan los pórticos iniciales. Deben aplicarse **en orden, de la 0001 a la 0017**.
+Las migraciones crean las tablas, las reglas de seguridad (RLS), los buckets de fotos y cargan los pórticos iniciales. Deben aplicarse **en orden, de la 0001 a la 0019**.
 
 **Opción A, con la CLI (recomendada):**
 
