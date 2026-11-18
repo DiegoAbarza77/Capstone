@@ -73,10 +73,10 @@ void main() {
 
     test('agrupa los errores por causa, de más a menos frecuente', () {
       expect(r.erroresPorTipo.keys.toList(), [
-        'Google con alta demanda (503)',
+        'Proveedor de IA con alta demanda (503)',
         'Límite de 10 llamadas por minuto',
       ]);
-      expect(r.erroresPorTipo['Google con alta demanda (503)'], 2);
+      expect(r.erroresPorTipo['Proveedor de IA con alta demanda (503)'], 2);
     });
 
     test('ordena los usuarios por llamadas', () {
@@ -118,11 +118,11 @@ void main() {
   group('etiquetas', () {
     test('causas de fallo', () {
       expect(etiquetaErrorIa('limitado', 429), 'Límite de 10 llamadas por minuto');
-      expect(etiquetaErrorIa('error', 503), 'Google con alta demanda (503)');
-      expect(etiquetaErrorIa('error', 429), 'Cuota de Google agotada (429)');
+      expect(etiquetaErrorIa('error', 503), 'Proveedor de IA con alta demanda (503)');
+      expect(etiquetaErrorIa('error', 429), 'Límite o saldo del proveedor de IA (429)');
       expect(etiquetaErrorIa('error', 502), 'Respuesta vacía o bloqueada');
       expect(etiquetaErrorIa('error', null), 'Error sin detalle');
-      expect(etiquetaErrorIa('error', 500), 'Error de Gemini (500)');
+      expect(etiquetaErrorIa('error', 500), 'Error del proveedor de IA (500)');
     });
 
     test('formatoDuracionIa', () {

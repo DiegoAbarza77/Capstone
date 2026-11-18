@@ -82,15 +82,15 @@ String etiquetaErrorIa(String resultado, int? httpStatus) {
   if (resultado == 'limitado') return 'Límite de 10 llamadas por minuto';
   switch (httpStatus) {
     case 503:
-      return 'Google con alta demanda (503)';
+      return 'Proveedor de IA con alta demanda (503)';
     case 429:
-      return 'Cuota de Google agotada (429)';
+      return 'Límite o saldo del proveedor de IA (429)';
     case 502:
       return 'Respuesta vacía o bloqueada';
     case null:
       return 'Error sin detalle';
     default:
-      return 'Error de Gemini ($httpStatus)';
+      return 'Error del proveedor de IA ($httpStatus)';
   }
 }
 

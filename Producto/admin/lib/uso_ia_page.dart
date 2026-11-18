@@ -68,7 +68,7 @@ class _UsoIaPageState extends State<UsoIaPage> {
                 style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.8)),
             const SizedBox(height: 8),
             const Text(
-              'Cada lectura de un documento, boleta o ticket es una llamada a la IA de Google (Gemini).',
+              'Cada lectura de un documento, boleta o ticket es una llamada a la IA (OpenAI).',
               style: TextStyle(color: _gris, fontSize: 14),
             ),
             const SizedBox(height: 20),

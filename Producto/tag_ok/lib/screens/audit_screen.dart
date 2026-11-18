@@ -424,7 +424,7 @@ Debes devolver EXCLUSIVAMENTE un objeto JSON válido con esta estructura estrict
       return parsed;
     } catch (e) {
       debugPrint('Gemini Extraction Error: $e\nResponse: $responseText');
-      throw Exception('Gemini no pudo interpretar correctamente el formato de la boleta.');
+      throw Exception('La IA no pudo interpretar correctamente el formato de la boleta.');
     }
   }
 
@@ -475,7 +475,7 @@ Debes devolver EXCLUSIVAMENTE un objeto JSON válido con esta estructura estrict
       return parsed;
     } catch (e) {
       debugPrint('Gemini Image Extraction Error: $e\nResponse: $responseText');
-      throw Exception('Gemini no pudo leer correctamente la foto de la boleta.');
+      throw Exception('La IA no pudo leer correctamente la foto de la boleta.');
     }
   }
 
@@ -632,7 +632,7 @@ Instrucciones para redactar el "aiReport":
             '**Discrepancias principales:**\n'
             '${discrepancies.take(3).map((d) => '- ${d['date']} ${d['time']}: **${d['portico']}** (Costo: \$${(d['cost'] as num).toStringAsFixed(0)})').join('\n')}'
             '${discrepancies.length > 3 ? '\n- *Y ${discrepancies.length - 3} cobros más con diferencias.*' : ''}\n\n'
-            '*Nota: No se pudo conectar con el motor de IA de Gemini, se muestran las discrepancias calculadas localmente.*';
+            '*Nota: No se pudo conectar con el motor de IA, se muestran las discrepancias calculadas localmente.*';
       }
     }
 
@@ -649,7 +649,7 @@ Instrucciones para redactar el "aiReport":
       'upload_date': DateTime.now().toIso8601String(),
       'details': auditedDetails,
       'ai_report': aiReport,
-      'audited_by': 'Gemini 2.5 Flash',
+      'audited_by': 'IA (OpenAI)',
     };
   }
 
@@ -1439,7 +1439,7 @@ Instrucciones para redactar el "aiReport":
       // Reporte de IA
       if (aiReport.isNotEmpty) {
         final aiTitleCell = sheetSummary.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 10));
-        aiTitleCell.value = TextCellValue('Reporte Analítico de IA (Gemini)');
+        aiTitleCell.value = TextCellValue('Reporte Analítico de IA');
         aiTitleCell.cellStyle = CellStyle(
           bold: true,
           fontSize: 12,
@@ -1919,7 +1919,7 @@ Instrucciones para redactar el "aiReport":
             const SizedBox(height: 4),
             Text(
               _useAI 
-                  ? 'Análisis inteligente, semántico y detección de fraude por Gemini' 
+                  ? 'Análisis inteligente, semántico y detección de fraude con IA' 
                   : 'Soporta formato oficial mensual (PDF / CSV / XLSX)',
               style: TextStyle(color: textMuted, fontSize: 10),
             ),
@@ -2118,7 +2118,7 @@ Instrucciones para redactar el "aiReport":
                               Icon(Icons.auto_awesome, color: Color(0xFFC084FC), size: 16),
                               SizedBox(width: 8),
                               Text(
-                                'REPORTE ANALÍTICO DE IA (GEMINI)',
+                                'REPORTE ANALÍTICO DE IA',
                                 style: TextStyle(
                                   color: Color(0xFFC084FC),
                                   fontSize: 10,

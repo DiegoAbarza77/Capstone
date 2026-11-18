@@ -79,7 +79,7 @@ void main() {
     expect(find.text('Llamadas a la IA'), findsOneWidget);
     expect(find.text('4'), findsWidgets);
     expect(find.text('50%'), findsOneWidget);
-    expect(find.text('Google con alta demanda (503)'), findsOneWidget);
+    expect(find.text('Proveedor de IA con alta demanda (503)'), findsOneWidget);
     expect(find.text('Límite de 10 llamadas por minuto'), findsOneWidget);
     expect(find.text('Ana Pérez'), findsOneWidget);
     expect(find.text('luis@example.com'), findsOneWidget);
