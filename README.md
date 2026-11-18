@@ -328,24 +328,7 @@ TAG-OK2.1/
 
 <a id="pendientes"></a>
 
-## Pendientes
 
-**Para dejar la Fase 2 cerrada**
-
-1. Instalar la app en un celular y probar el GPS, el cronómetro, los recordatorios y las notificaciones.
-2. Recorrer en el panel la suspensión de cuentas, Pórticos, Tarifas, Reportes, Auditoría y Administradores.
-3. Probar la IA con comprobantes reales: documentos del vehículo, tickets de estacionamiento y boletas de combustible.
-4. Comparar el registro (CU2) y el semáforo de documentos (CU6, umbral de 30 días) con las plantillas de casos de uso.
-5. Borrar los datos de prueba de la cuenta de prueba.
-
-**Para el proyecto**
-
-6. Reemplazar la prueba por defecto del panel (`admin/test/widget_test.dart`).
-7. Limpiar restos de la versión anterior: las dependencias de Firebase que siguen en `requirements.txt` y la llave de servicio de Firebase (ya excluida de git).
-8. Notificaciones: decidir con cuánta anticipación avisar y que el interruptor del Perfil cancele los avisos ya programados.
-9. Corregir el pequeño desborde de la tarjeta de gasto de Mi Auto en pantallas angostas.
-
----
 
 <a id="objetivo"></a>
 
