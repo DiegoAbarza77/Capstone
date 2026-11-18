@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'administradores_logica.dart';
 import 'beneficio_logica.dart';
 import 'metricas_logica.dart';
 import 'uso_ia_logica.dart';
@@ -109,14 +110,40 @@ class AdminSupabaseService {
     return 'Conexión / Otras';
   }
 
+  /// Identificadores de las cuentas de administrador. Si la consulta falla
+  /// devuelve un conjunto vacío: el panel sigue funcionando, solo que sin
+  /// separar a los administradores de los conductores.
+  Future<Set<String>> _idsAdministradores() async {
+    try {
+      final filas = await _client.from('administradores').select('id');
+      return idsDeAdministradores(List<Map<String, dynamic>>.from(filas));
+    } catch (e) {
+      debugPrint('TAG_OK_ADMIN: no se pudo leer administradores: $e');
+      return <String>{};
+    }
+  }
+
+  /// Cantidad de conductores: cuentas de `usuarios` que no son administradores.
+  Future<int> _contarConductores() async {
+    final total = await _count('usuarios');
+    final admins = await _idsAdministradores();
+    if (admins.isEmpty) return total;
+    final enUsuarios = await _client
+        .from('usuarios')
+        .select('id')
+        .inFilter('id', admins.toList())
+        .count(CountOption.exact);
+    return conductoresTotales(total, enUsuarios.count);
+  }
+
   Future<ReportMetrics> fetchReportMetrics() async {
-    final users = await _client.from('usuarios').select('id').count(CountOption.exact);
+    final conductores = await _contarConductores();
     final vehicles = await _client.from('vehiculos').select('id').count(CountOption.exact);
     // RLS (is_admin() OR usuario_id = auth.uid()) le da al admin visibilidad
     // de los viajes de todos los usuarios; reemplaza al collectionGroup('trips') de Firestore.
     final tripsRows = await _client.from('trips').select('total_cost, tolls');
 
-    final int totalUsers = users.count;
+    final int totalUsers = conductores;
     final int totalVehicles = vehicles.count;
     final int totalTrips = tripsRows.length;
 
@@ -168,7 +195,7 @@ class AdminSupabaseService {
 
   Future<AdminOverview> fetchOverview() async {
     final results = await Future.wait([
-      _count('usuarios'),
+      _contarConductores(),
       _count('vehiculos'),
       _count('porticos'),
       _count('tarifas'),
@@ -182,8 +209,13 @@ class AdminSupabaseService {
     );
   }
 
+  /// Conductores en tiempo real. Excluye a los administradores, que también
+  /// tienen una fila en `usuarios` por el disparador de la base de datos.
   Stream<List<Map<String, dynamic>>> streamUsers() {
-    return _client.from('usuarios').stream(primaryKey: ['id']);
+    return _client.from('usuarios').stream(primaryKey: ['id']).asyncMap((filas) async {
+      final admins = await _idsAdministradores();
+      return sinAdministradores(filas, admins);
+    });
   }
 
   Stream<List<Map<String, dynamic>>> streamPorticos() {
@@ -440,8 +472,9 @@ class AdminSupabaseService {
     final inicio = limites.inicio;
     final fin = limites.fin;
 
+    final idsAdmin = await _idsAdministradores();
     final resultados = await Future.wait([
-      _count('usuarios'),
+      _contarConductores(),
       _count('vehiculos'),
       _traerTodo('usuarios', 'id, fecha_creacion', columnaFecha: 'fecha_creacion', inicio: inicio, fin: fin),
       _traerTodo('vehiculos', 'id, usuario_id, created_at'),
@@ -461,7 +494,7 @@ class AdminSupabaseService {
     return FilasMetricas(
       usuariosTotales: resultados[0] as int,
       vehiculosTotales: resultados[1] as int,
-      usuarios: resultados[2] as List<Map<String, dynamic>>,
+      usuarios: sinAdministradores(resultados[2] as List<Map<String, dynamic>>, idsAdmin),
       vehiculos: resultados[3] as List<Map<String, dynamic>>,
       viajes: resultados[4] as List<Map<String, dynamic>>,
       cargas: resultados[5] as List<Map<String, dynamic>>,
