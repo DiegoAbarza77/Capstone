@@ -3,7 +3,7 @@
 -- =====================================================================
 --
 -- Arma la base de datos desde cero, tal como está implementada. Es la unión,
--- en orden, de las 17 migraciones de Producto/supabase/migrations/, que son
+-- en orden, de las 19 migraciones de Producto/supabase/migrations/, que son
 -- la fuente de verdad: este archivo se genera a partir de ellas.
 --
 -- CÓMO USARLO
@@ -15,13 +15,13 @@
 -- No se puede ejecutar dos veces sobre la misma base (las tablas ya existirían).
 --
 -- CONTENIDO
---   Tablas (14):  usuarios, administradores, vehiculos, vehiculo_documentos,
+--   Tablas (15):  usuarios, administradores, vehiculos, vehiculo_documentos,
 --                 trips, combustible_cargas, audited_invoices, porticos, tarifas,
 --                 auditoria, beneficios, mantenciones, estacionamientos,
---                 mantenciones_programadas
+--                 mantenciones_programadas, uso_ia
 --   Además:       funciones is_admin / is_super_admin, trigger de creación de
 --                 perfil, políticas de seguridad por fila (RLS), tiempo real,
---                 carga inicial de pórticos y 6 buckets de almacenamiento.
+--                 carga inicial de pórticos y 7 buckets de almacenamiento.
 --
 -- ÍNDICE DE SECCIONES
 --    1. 0001_init_schema.sql
@@ -41,10 +41,12 @@
 --   15. 0015_beneficios_categorias_y_canje.sql
 --   16. 0016_combustible_comprobante.sql
 --   17. 0017_estado_cuenta_y_auditoria.sql
+--   18. 0018_documentos_archivo.sql
+--   19. 0019_uso_ia.sql
 -- =====================================================================
 
 -- =====================================================================
--- SECCIÓN 1 de 17 · 0001_init_schema.sql
+-- SECCIÓN 1 de 19 · 0001_init_schema.sql
 -- =====================================================================
 
 -- TAG-OK: esquema inicial Postgres (migración desde Firestore)
@@ -219,7 +221,7 @@ create table public.beneficios (
 -- el codigo actual (solo un conteo muerto en admin_firestore_service.dart).
 
 -- =====================================================================
--- SECCIÓN 2 de 17 · 0002_profile_trigger.sql
+-- SECCIÓN 2 de 19 · 0002_profile_trigger.sql
 -- =====================================================================
 
 -- Crea automaticamente la fila de public.usuarios cuando se registra un
@@ -250,7 +252,7 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- =====================================================================
--- SECCIÓN 3 de 17 · 0003_rls.sql
+-- SECCIÓN 3 de 19 · 0003_rls.sql
 -- =====================================================================
 
 -- Row Level Security: replica (y corrige) la semantica de
@@ -401,7 +403,7 @@ create policy auditoria_insert on public.auditoria for insert with check (is_adm
 -- values ('<uid-del-usuario>', 'tu@email.com', 'super_admin');
 
 -- =====================================================================
--- SECCIÓN 4 de 17 · 0004_fix_combustible_rls.sql
+-- SECCIÓN 4 de 19 · 0004_fix_combustible_rls.sql
 -- =====================================================================
 
 -- combustible_cargas_all solo validaba usuario_id = auth.uid(), a diferencia
@@ -433,7 +435,7 @@ create policy combustible_cargas_all on public.combustible_cargas
   );
 
 -- =====================================================================
--- SECCIÓN 5 de 17 · 0005_nuevos_modulos.sql
+-- SECCIÓN 5 de 19 · 0005_nuevos_modulos.sql
 -- =====================================================================
 
 -- Migración para los nuevos módulos de la Fase 2: Mantenciones, Estacionamientos y Beneficios (ampliado)
@@ -532,7 +534,7 @@ alter table public.beneficios
 -- no se requieren nuevas políticas.
 
 -- =====================================================================
--- SECCIÓN 6 de 17 · 0006_enable_realtime.sql
+-- SECCIÓN 6 de 19 · 0006_enable_realtime.sql
 -- =====================================================================
 
 -- Supabase NO habilita Realtime automáticamente al crear una tabla; hay que
@@ -579,7 +581,7 @@ begin
 end $$;
 
 -- =====================================================================
--- SECCIÓN 7 de 17 · 0007_seed_porticos.sql
+-- SECCIÓN 7 de 19 · 0007_seed_porticos.sql
 -- =====================================================================
 
 -- Carga inicial de los pórticos reales en public.porticos.
@@ -705,7 +707,7 @@ from (values
 where not exists (select 1 from public.porticos);
 
 -- =====================================================================
--- SECCIÓN 8 de 17 · 0008_avatar_storage.sql
+-- SECCIÓN 8 de 19 · 0008_avatar_storage.sql
 -- =====================================================================
 
 -- Foto de perfil: columna en usuarios + bucket de Storage para avatares.
@@ -743,7 +745,7 @@ create policy avatars_delete on storage.objects
   );
 
 -- =====================================================================
--- SECCIÓN 9 de 17 · 0009_vehiculo_foto_y_documento_ia.sql
+-- SECCIÓN 9 de 19 · 0009_vehiculo_foto_y_documento_ia.sql
 -- =====================================================================
 
 -- Módulo "Mi Vehículo": foto del vehículo, trazabilidad de documentos
@@ -793,7 +795,7 @@ create policy vehiculo_fotos_delete on storage.objects
   );
 
 -- =====================================================================
--- SECCIÓN 10 de 17 · 0010_usuarios_delete_super_admin.sql
+-- SECCIÓN 10 de 19 · 0010_usuarios_delete_super_admin.sql
 -- =====================================================================
 
 -- Borrar filas de usuarios era posible para cualquier admin (incluido el
@@ -808,7 +810,7 @@ create policy usuarios_delete on public.usuarios
   for delete using (is_super_admin());
 
 -- =====================================================================
--- SECCIÓN 11 de 17 · 0011_combustible_energia.sql
+-- SECCIÓN 11 de 19 · 0011_combustible_energia.sql
 -- =====================================================================
 
 -- Combustible y carga: soporte de kWh para híbridos y eléctricos, trazabilidad
@@ -833,7 +835,7 @@ comment on column public.combustible_cargas.precio_litro is
   'Precio por unidad (por litro o por kWh).';
 
 -- =====================================================================
--- SECCIÓN 12 de 17 · 0012_mantenciones_detalle.sql
+-- SECCIÓN 12 de 19 · 0012_mantenciones_detalle.sql
 -- =====================================================================
 
 -- Módulo Mantenciones: detalle del servicio, documento adjunto, trazabilidad de
@@ -946,7 +948,7 @@ create policy mantencion_docs_delete on storage.objects
   );
 
 -- =====================================================================
--- SECCIÓN 13 de 17 · 0013_estacionamientos_detalle.sql
+-- SECCIÓN 13 de 19 · 0013_estacionamientos_detalle.sql
 -- =====================================================================
 
 -- Módulo Estacionamientos: sesión en curso (cronómetro), dirección, observaciones,
@@ -1012,7 +1014,7 @@ create policy estacionamiento_docs_delete on storage.objects
   );
 
 -- =====================================================================
--- SECCIÓN 14 de 17 · 0014_beneficios_backoffice.sql
+-- SECCIÓN 14 de 19 · 0014_beneficios_backoffice.sql
 -- =====================================================================
 
 -- Beneficios (CU15 y CU19): comercio, categorías válidas, visibilidad para los
@@ -1074,7 +1076,7 @@ create policy beneficios_imagenes_delete on storage.objects
   for delete using (bucket_id = 'beneficios_imagenes' and is_admin());
 
 -- =====================================================================
--- SECCIÓN 15 de 17 · 0015_beneficios_categorias_y_canje.sql
+-- SECCIÓN 15 de 19 · 0015_beneficios_categorias_y_canje.sql
 -- =====================================================================
 
 -- Beneficios: las 8 categorías del catálogo (CU15) y el código o mecanismo de canje.
@@ -1100,7 +1102,7 @@ alter table public.beneficios
 alter table public.beneficios add column if not exists codigo_canje text;
 
 -- =====================================================================
--- SECCIÓN 16 de 17 · 0016_combustible_comprobante.sql
+-- SECCIÓN 16 de 19 · 0016_combustible_comprobante.sql
 -- =====================================================================
 
 -- Combustible: comprobante adjunto (la boleta de la carga) y montos no negativos.
@@ -1151,7 +1153,7 @@ create policy combustible_docs_delete on storage.objects
   );
 
 -- =====================================================================
--- SECCIÓN 17 de 17 · 0017_estado_cuenta_y_auditoria.sql
+-- SECCIÓN 17 de 19 · 0017_estado_cuenta_y_auditoria.sql
 -- =====================================================================
 
 -- Estado de la cuenta (suspensión, CU18) y enlace de la bitácora con el administrador.
@@ -1196,3 +1198,93 @@ alter table public.auditoria
 
 create index auditoria_admin_id_idx on public.auditoria (admin_id);
 
+
+-- =====================================================================
+-- SECCIÓN 18 de 19 · 0018_documentos_archivo.sql
+-- =====================================================================
+
+-- Documentos del vehículo: guardar el archivo original (foto o PDF).
+--
+-- Hasta ahora, al subir un permiso, una revisión técnica, un SOAP o un seguro,
+-- solo se guardaban los datos leídos y el nombre del archivo, no el archivo.
+-- Ahora el archivo queda en un bucket privado, igual que las boletas de
+-- mantenciones, estacionamientos y combustible, y el conductor puede volver a
+-- verlo desde la pantalla del documento.
+--
+-- La columna archivo_nombre ya existía (0009); aquí se agrega la ruta.
+alter table public.vehiculo_documentos
+  add column if not exists archivo_path text;
+
+comment on column public.vehiculo_documentos.archivo_path is
+  'Ruta del archivo dentro del bucket vehiculo_docs: <usuario>/<vehiculo>/<archivo>.';
+
+-- Bucket privado: los documentos del vehículo son datos personales, así que solo
+-- el dueño puede leer o escribir, y cada usuario en su propia carpeta
+-- (<uid>/<vehiculo>/<archivo>). 10 MB como máximo, solo imágenes y PDF.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'vehiculo_docs', 'vehiculo_docs', false, 10485760,
+  array['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+)
+on conflict (id) do nothing;
+
+create policy vehiculo_docs_select on storage.objects
+  for select using (
+    bucket_id = 'vehiculo_docs' and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy vehiculo_docs_insert on storage.objects
+  for insert with check (
+    bucket_id = 'vehiculo_docs' and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy vehiculo_docs_update on storage.objects
+  for update using (
+    bucket_id = 'vehiculo_docs' and (storage.foldername(name))[1] = auth.uid()::text
+  ) with check (
+    bucket_id = 'vehiculo_docs' and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy vehiculo_docs_delete on storage.objects
+  for delete using (
+    bucket_id = 'vehiculo_docs' and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+
+-- =====================================================================
+-- SECCIÓN 19 de 19 · 0019_uso_ia.sql
+-- =====================================================================
+
+-- Registro del uso de la IA (panel de administración, "Uso de IA").
+--
+-- La función gemini-proxy (el único lugar que habla con Gemini) anota aquí cada
+-- llamada: quién la hizo, cuándo, si resultó bien, falló o chocó con el límite
+-- por minuto, y cuánto tardó. Sirve para ver el volumen de uso, los errores y
+-- controlar el costo.
+--
+-- No guarda el contenido de lo que se envía (ni el texto ni el archivo): solo
+-- datos de la llamada.
+create table public.uso_ia (
+  id            uuid primary key default gen_random_uuid(),
+  -- Si se borra la cuenta, la fila queda (sin dueño) para no perder el conteo.
+  usuario_id    uuid references public.usuarios(id) on delete set null,
+  created_at    timestamptz not null default now(),
+  resultado     text not null check (resultado in ('ok', 'error', 'limitado')),
+  -- Código HTTP del fallo (503 = Google con alta demanda, 502 = respuesta vacía).
+  http_status   integer,
+  con_archivo   boolean not null default false,
+  tipo_archivo  text,
+  prompt_chars  integer not null default 0,
+  duracion_ms   integer
+);
+
+create index uso_ia_created_at_idx on public.uso_ia (created_at desc);
+create index uso_ia_usuario_idx on public.uso_ia (usuario_id, created_at desc);
+
+alter table public.uso_ia enable row level security;
+
+-- Solo los administradores leen el registro. No hay políticas de insertar,
+-- modificar ni borrar: escribe únicamente la función del servidor, con su llave
+-- de servicio, así que ningún usuario puede alterar las cifras.
+create policy uso_ia_select on public.uso_ia
+  for select using (is_admin());

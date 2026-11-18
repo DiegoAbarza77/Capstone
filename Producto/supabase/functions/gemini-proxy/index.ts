@@ -96,8 +96,11 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
+  // Proveedor alternativo: si existe OPENAI_API_KEY se usa OpenAI en vez de
+  // Gemini (el contrato con la app no cambia: sigue devolviendo { text }).
+  const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
 
-  if (!supabaseUrl || !anonKey || !geminiApiKey) {
+  if (!supabaseUrl || !anonKey || (!geminiApiKey && !openaiApiKey)) {
     // Devolver un error con headers CORS en vez de dejar que Deno.env.get(...)!
     // lance una excepción no capturada (esa respuesta de error no lleva
     // corsHeaders y el navegador vuelve a ver un "Failed to fetch" genérico).
@@ -160,6 +163,85 @@ Deno.serve(async (req) => {
     });
   }
 
+  // ---- Proveedor OpenAI (se activa con el secreto OPENAI_API_KEY) ----------
+  if (openaiApiKey) {
+    const modeloOpenAI = Deno.env.get("OPENAI_MODEL");
+    if (!modeloOpenAI) {
+      return new Response("Falta el secreto OPENAI_MODEL (nombre del modelo de OpenAI)", {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
+    const contenido: Record<string, unknown>[] = [{ type: "text", text: body.prompt }];
+    if (body.imageBase64 && body.imageMimeType) {
+      const dataUrl = `data:${body.imageMimeType};base64,${body.imageBase64}`;
+      contenido.push(
+        body.imageMimeType === "application/pdf"
+          ? { type: "file", file: { filename: "documento.pdf", file_data: dataUrl } }
+          : { type: "image_url", image_url: { url: dataUrl } },
+      );
+    }
+    // Con "extras" se piden respuesta JSON y razonamiento mínimo: la extracción de
+    // datos de una boleta no necesita "pensar" (el modelo razona en nivel medio por
+    // defecto, lo que la haría lenta y más cara). Si el modelo rechazara alguno de
+    // esos parámetros (error 400), se repite una vez sin ellos.
+    const armarCuerpo = (conExtras: boolean) =>
+      JSON.stringify({
+        model: modeloOpenAI,
+        messages: [{ role: "user", content: contenido }],
+        ...(conExtras
+          ? {
+              response_format: { type: "json_object" },
+              reasoning_effort: Deno.env.get("OPENAI_REASONING_EFFORT") ?? "none",
+            }
+          : {}),
+      });
+    const llamarOpenAI = (conExtras = true) =>
+      fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${openaiApiKey}` },
+        body: armarCuerpo(conExtras),
+      });
+
+    const inicioOpenAI = Date.now();
+    // 500/502/503/504 son fallas pasajeras del proveedor: se reintenta hasta 3 veces.
+    const REINTENTABLES_OPENAI = new Set([500, 502, 503, 504]);
+    const ESPERAS_OPENAI_MS = [1500, 3000];
+    let respuesta = await llamarOpenAI();
+    if (respuesta.status === 400) {
+      const detalle400 = await respuesta.text();
+      console.error(`gemini-proxy: OpenAI rechazó (400) con parámetros extra; se reintenta sin ellos: ${detalle400.slice(0, 300)}`);
+      respuesta = await llamarOpenAI(false);
+    }
+    for (let i = 0; i < ESPERAS_OPENAI_MS.length && REINTENTABLES_OPENAI.has(respuesta.status); i++) {
+      await respuesta.body?.cancel();
+      await new Promise((r) => setTimeout(r, ESPERAS_OPENAI_MS[i]));
+      respuesta = await llamarOpenAI();
+    }
+
+    if (!respuesta.ok) {
+      const errorText = await respuesta.text();
+      console.error(`gemini-proxy: OpenAI respondió ${respuesta.status} (modelo ${modeloOpenAI}): ${errorText.slice(0, 500)}`);
+      await registrarUso({ ...base, resultado: "error", httpStatus: respuesta.status, duracionMs: Date.now() - inicioOpenAI });
+      return new Response(`Error de OpenAI: ${errorText}`, { status: 502, headers: corsHeaders });
+    }
+
+    const resultado = await respuesta.json();
+    const textoOpenAI = resultado?.choices?.[0]?.message?.content ?? "";
+    if (!textoOpenAI) {
+      const motivo = resultado?.choices?.[0]?.finish_reason ?? "sin contenido";
+      console.error(`gemini-proxy: OpenAI devolvió una respuesta vacía (${motivo})`);
+      await registrarUso({ ...base, resultado: "error", httpStatus: 502, duracionMs: Date.now() - inicioOpenAI });
+      return new Response(`La IA no devolvió una respuesta utilizable (${motivo})`, { status: 502, headers: corsHeaders });
+    }
+
+    await registrarUso({ ...base, resultado: "ok", duracionMs: Date.now() - inicioOpenAI });
+    return new Response(JSON.stringify({ text: textoOpenAI }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   // Si viene una imagen (foto de boleta), se manda como inline_data junto
   // al prompt de texto -- Gemini es multimodal y puede "leer" la imagen.
   const parts: Record<string, unknown>[] = [{ text: body.prompt }];
@@ -170,26 +252,45 @@ Deno.serve(async (req) => {
   }
 
   const inicio = Date.now();
-  const geminiResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          // gemini-3.6-flash activa "thinking" por defecto, lo que hace
-          // la respuesta tardar 40+ segundos para esta tarea de extracción
-          // estructurada -- no lo necesitamos, así que lo desactivamos.
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-      }),
+  const cuerpo = JSON.stringify({
+    contents: [{ parts }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      // gemini-3.6-flash activa "thinking" por defecto, lo que hace
+      // la respuesta tardar 40+ segundos para esta tarea de extracción
+      // estructurada -- no lo necesitamos, así que lo desactivamos.
+      thinkingConfig: { thinkingBudget: 0 },
     },
-  );
+  });
+  const llamarGemini = (modelo: string) =>
+    fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${geminiApiKey}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: cuerpo },
+    );
+
+  // 503/500/504 de Gemini son "alta demanda" pasajera: se reintenta con espera
+  // creciente (hasta 3 intentos). Un 429 (cuota diaria) no se reintenta con el
+  // mismo modelo porque seguiría fallando; solo se prueba el modelo de respaldo
+  // si se configuró GEMINI_FALLBACK_MODEL (opcional, no hay uno por defecto).
+  const REINTENTABLES = new Set([500, 503, 504]);
+  const ESPERAS_MS = [1500, 3000];
+  let geminiResponse = await llamarGemini(GEMINI_MODEL);
+  for (let i = 0; i < ESPERAS_MS.length && REINTENTABLES.has(geminiResponse.status); i++) {
+    await geminiResponse.body?.cancel();
+    await new Promise((r) => setTimeout(r, ESPERAS_MS[i]));
+    geminiResponse = await llamarGemini(GEMINI_MODEL);
+  }
+  const modeloRespaldo = Deno.env.get("GEMINI_FALLBACK_MODEL");
+  if (!geminiResponse.ok && modeloRespaldo && (geminiResponse.status === 429 || REINTENTABLES.has(geminiResponse.status))) {
+    await geminiResponse.body?.cancel();
+    geminiResponse = await llamarGemini(modeloRespaldo);
+  }
 
   if (!geminiResponse.ok) {
     const errorText = await geminiResponse.text();
+    // Queda en Supabase > Edge Functions > gemini-proxy > Logs, para ver el
+    // motivo exacto que dio Google (cuota, sobrecarga, clave, etc.).
+    console.error(`gemini-proxy: Gemini respondió ${geminiResponse.status} (modelo ${GEMINI_MODEL}): ${errorText.slice(0, 500)}`);
     await registrarUso({
       ...base,
       resultado: "error",

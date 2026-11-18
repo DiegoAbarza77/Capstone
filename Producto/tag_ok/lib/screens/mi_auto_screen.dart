@@ -418,7 +418,7 @@ class _PanelVehiculoState extends State<_PanelVehiculo> {
       children: [
         _TarjetaIndicador(
           valor: formatoPesos(gastos.total),
-          etiqueta: 'Gasto movilidad este mes',
+          etiqueta: 'Gasto del mes',
           color: _primaryColor,
         ),
         _TarjetaIndicador(

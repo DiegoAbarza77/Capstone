@@ -184,8 +184,8 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con esta estructura exacta:
     final String respuesta;
     try {
       respuesta = await _proxy.pedirTexto(_prompt, fileBytes: fileBytes, mimeType: mimeType);
-    } catch (_) {
-      throw const LecturaBoletaException('No se pudo contactar al servicio de IA. Revisa tu conexión.');
+    } catch (e) {
+      throw LecturaBoletaException(mensajeErrorIa(e));
     }
 
     try {

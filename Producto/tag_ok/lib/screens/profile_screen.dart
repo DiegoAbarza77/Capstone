@@ -244,6 +244,11 @@ class ProfileScreen extends ConsumerWidget {
                       value: vehiculoPrincipal,
                       icon: Icons.directions_car_outlined,
                       color: Colors.amber,
+                      onTap: () => _editarVehiculoPrincipal(
+                        context,
+                        user.id,
+                        vehiculoPrincipal == 'Ninguno' ? '' : vehiculoPrincipal,
+                      ),
                     ),
                   ),
                 ],
@@ -757,6 +762,101 @@ class ProfileScreen extends ConsumerWidget {
         return null;
       },
       convertir: (v) => int.parse(v),
+    );
+  }
+
+  /// Permite elegir cuál de tus vehículos es el principal, sin salir del perfil.
+  Future<void> _editarVehiculoPrincipal(BuildContext context, String uid, String actual) async {
+    final messenger = ScaffoldMessenger.of(context);
+    List<Map<String, dynamic>> vehiculos;
+    try {
+      final filas = await Supabase.instance.client
+          .from('vehiculos')
+          .select('patente, alias, marca, modelo')
+          .eq('usuario_id', uid)
+          .order('fecha_ingreso');
+      vehiculos = List<Map<String, dynamic>>.from(filas);
+    } catch (e) {
+      debugPrint('TAG_OK_PROFILE: error al leer vehículos: $e');
+      messenger.showSnackBar(const SnackBar(
+        content: Text('No se pudieron cargar tus vehículos. Revisa tu conexión.'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    if (!context.mounted) return;
+
+    if (vehiculos.isEmpty) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Aún no tienes vehículos. Agrégalo en la pestaña Mi Auto.'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+
+    String detalle(Map<String, dynamic> v) {
+      final alias = (v['alias'] ?? '').toString().trim();
+      final marcaModelo = [v['marca'], v['modelo']]
+          .where((x) => x != null && x.toString().trim().isNotEmpty && x.toString() != 'No especificada')
+          .join(' ');
+      return [alias, marcaModelo].where((x) => x.isNotEmpty).join(' · ');
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: navBgColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            'Vehículo principal',
+            style: TextStyle(color: textMain, fontWeight: FontWeight.bold),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: vehiculos.length,
+              itemBuilder: (_, i) {
+                final v = vehiculos[i];
+                final patente = (v['patente'] ?? '').toString();
+                final sub = detalle(v);
+                return ListTile(
+                  leading: Icon(Icons.directions_car_outlined, color: textMuted),
+                  title: Text(patente, style: TextStyle(color: textMain, fontWeight: FontWeight.w600)),
+                  subtitle: sub.isEmpty ? null : Text(sub, style: TextStyle(color: textMuted)),
+                  trailing: patente == actual ? Icon(Icons.check_circle, color: accentColor) : null,
+                  onTap: () async {
+                    Navigator.pop(dialogContext);
+                    if (patente == actual) return;
+                    try {
+                      await Supabase.instance.client
+                          .from('usuarios')
+                          .update({'vehiculo_principal_patente': patente}).eq('id', uid);
+                      messenger.showSnackBar(SnackBar(
+                        content: Text('Vehículo principal actualizado a $patente'),
+                        behavior: SnackBarBehavior.floating,
+                      ));
+                    } catch (e) {
+                      debugPrint('TAG_OK_PROFILE: error al guardar vehículo principal: $e');
+                      messenger.showSnackBar(const SnackBar(
+                        content: Text('No se pudo guardar. Revisa tu conexión e intenta de nuevo.'),
+                        behavior: SnackBarBehavior.floating,
+                      ));
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+          ],
+        );
+      },
     );
   }
 

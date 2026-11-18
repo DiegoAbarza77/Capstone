@@ -608,7 +608,10 @@ class _DashboardPageState extends State<DashboardPage> {
             }
 
             final trips = tripsSnapshot.data ?? [];
-            final usersDocs = usersSnapshot.data ?? [];
+            // "Usuarios Recientes": el stream viene sin orden, así que se
+            // ordenan aquí de más nuevo a más antiguo por fecha de creación.
+            final usersDocs = [...(usersSnapshot.data ?? <Map<String, dynamic>>[])]
+              ..sort((a, b) => (b['fecha_creacion'] ?? '').toString().compareTo((a['fecha_creacion'] ?? '').toString()));
 
             double totalTollCost = 0.0;
             final Map<String, double> costByHighway = {
