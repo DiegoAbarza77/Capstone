@@ -8,7 +8,7 @@
 [![Dart](https://img.shields.io/badge/Dart-3.x-blue.svg)](https://dart.dev/)
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth%20%2B%20RLS-3ECF8E.svg)](https://supabase.com/)
 [![Mapbox](https://img.shields.io/badge/Mapbox-GL%20Maps-000000.svg)](https://www.mapbox.com/)
-[![Gemini](https://img.shields.io/badge/Gemini-AI-8B5CF6.svg)](https://ai.google.dev/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-AI-8B5CF6.svg)](https://platform.openai.com/)
 
 ---
 
@@ -73,7 +73,7 @@ Este README refleja el estado del código y de las pruebas, actualizado el **21 
 * Amplía el alcance del producto hacia un asistente integral del vehículo: documentos, mantenciones, estacionamientos, combustible y beneficios.
 * Formaliza la regla **"Manual + IA → Revisión → Confirmar → Guardar"**: ningún dato extraído por IA se guarda sin que el usuario lo revise y confirme.
 * Agrega soporte para auditar boletas **desde una foto**, no solo PDF/CSV/XLSX.
-* Mueve las llamadas a la IA de Gemini a **Edge Functions de servidor**, para que ninguna llave de API quede expuesta en la app.
+* Mueve las llamadas a la IA (OpenAI; Gemini como alternativa) a **Edge Functions de servidor**, para que ninguna llave de API quede expuesta en la app.
 
 ---
 
@@ -133,7 +133,7 @@ Pestaña de entrada con el vehículo elegido, su estado, alertas de documentos v
 Foto / PDF / CSV / XLSX
         │
         ▼
-  IA extrae los datos (Gemini, vía Edge Function — la llave nunca sale del servidor)
+  IA extrae los datos (OpenAI, vía Edge Function — la llave nunca sale del servidor)
         │
         ▼
   Formulario precargado
@@ -217,7 +217,7 @@ La migración de Firebase a Supabase no fue solo un cambio de proveedor — se a
 * **Row Level Security (RLS) versionada y testeada.** Cada tabla tiene políticas explícitas (dueño-o-admin) en archivos SQL versionados en el repo (`Producto/supabase/migrations/`), no reglas ad hoc solo en el cliente.
 * **Sin escalación de privilegios por defecto.** Las reglas de Firestore anteriores asignaban `super_admin` por defecto si faltaba el campo de rol; las políticas de Supabase no tienen esa rama — sin rol explícito, no hay privilegios.
 * **Operaciones sensibles en el servidor, no en el cliente.** Crear o eliminar un administrador corre en **Edge Functions** con la *service-role key* (nunca expuesta al cliente) y verifica el rol de quien llama antes de ejecutar nada — reemplaza un truco anterior que abría una segunda sesión de Firebase en el propio cliente.
-* **Ninguna llave de IA en el navegador.** Las llamadas a Gemini pasan por una Edge Function (`gemini-proxy`); la API key vive solo como secreto de servidor.
+* **Ninguna llave de IA en el navegador.** Las llamadas a la IA (OpenAI) pasan por una Edge Function (`gemini-proxy`, nombre histórico); la API key vive solo como secreto de servidor.
 * **Referencias de dueño sin ambigüedad.** `vehiculos.usuario_id` es ahora una llave foránea `uuid` real hacia `auth.users`, eliminando un bug donde el dueño de un vehículo podía quedar guardado como texto o como referencia según la pantalla.
 
 ---
@@ -228,7 +228,7 @@ La migración de Firebase a Supabase no fue solo un cambio de proveedor — se a
 
 * **Pruebas automáticas:** 258 en la app, todas pasan. En el panel de administración pasan 44 y falla 1: es la prueba por defecto de Flutter (`admin/test/widget_test.dart`), que no corresponde al proyecto y hay que reemplazar.
 * **Qué cubren:** cálculos, validaciones, lectura de la IA con respuestas simuladas, fechas, filtros, caché sin conexión y el flujo de actualización periódica de los datos.
-* **Seguridad:** seguridad por fila en todas las tablas, clave de Gemini solo en el servidor, límites en la función de IA (tamaño, tipo de archivo y 10 llamadas por minuto por usuario), borrado de usuarios restringido a `super_admin` y archivos privados por carpeta de usuario.
+* **Seguridad:** seguridad por fila en todas las tablas, clave de la IA solo en el servidor, límites en la función de IA (tamaño, tipo de archivo y 10 llamadas por minuto por usuario), borrado de usuarios restringido a `super_admin` y archivos privados por carpeta de usuario.
 * **Actualización de datos en pantalla:** Combustible y Mantenciones usan Supabase Realtime. Estacionamientos y Beneficios consultan directamente la base (al abrir, cada 15 y 30 segundos, y al instante tras cada cambio hecho desde la app), para no depender de que la tabla esté publicada en Realtime.
 * **Modo sin conexión:** la app guarda una copia de los últimos datos recibidos; sin red se siguen viendo historiales y el tablero, pero no se puede registrar nada nuevo.
 * **No cubierto todavía:** el GPS real, las notificaciones y los recordatorios en celular, la lectura con IA de comprobantes reales (salvo Mantenciones) y las pantallas del panel de pórticos, tarifas, reportes, auditoría y administradores.
@@ -246,7 +246,7 @@ La migración de Firebase a Supabase no fue solo un cambio de proveedor — se a
 * [Flutter](https://flutter.dev/) y Dart (vienen juntos).
 * Git.
 * Una cuenta/proyecto en [Supabase](https://supabase.com/) (gratis, sin tarjeta) con todas las migraciones SQL de `Producto/supabase/migrations/` aplicadas en orden (0001 a 0019) y las 3 Edge Functions de `Producto/supabase/functions/` desplegadas.
-* Credenciales de Mapbox y Gemini (opcionales para probar solo Auth/datos; requeridas para mapas e IA).
+* Credenciales de Mapbox y OpenAI (opcionales para probar solo Auth/datos; requeridas para mapas e IA).
 
 ### Pasos
 
@@ -270,7 +270,7 @@ SUPABASE_ANON_KEY=tu-anon-key
 
 > A diferencia de la v1, estas credenciales **son obligatorias** — la app no arranca sin ellas. El instalador te avisa con un mensaje claro si intentas ejecutar la app antes de completar el `.env`, en vez de dejar que la app falle en silencio.
 >
-> `GEMINI_API_KEY` **no** va en ningún `.env` de la app — vive solo como secreto de la Edge Function `gemini-proxy` en el dashboard de Supabase, nunca en el cliente.
+> `OPENAI_API_KEY` y `OPENAI_MODEL` (o `GEMINI_API_KEY` si usas Gemini) **no** van en ningún `.env` de la app — vive solo como secreto de la Edge Function `gemini-proxy` en el dashboard de Supabase, nunca en el cliente.
 
 O manualmente:
 
@@ -294,7 +294,7 @@ cd ../admin && flutter pub get && flutter run
 | **Funciones de servidor** | Supabase Edge Functions (Deno) |
 | **Tiempo real** | Supabase Realtime |
 | **Mapas** | Flutter Map + Mapbox API |
-| **Inteligencia Artificial** | Google Gemini (vía Edge Function) |
+| **Inteligencia Artificial** | OpenAI `gpt-6-luna` (vía Edge Function; Gemini como alternativa) |
 | **Procesamiento de archivos** | file_picker, syncfusion_flutter_pdf, excel |
 | **Control de versiones** | Git + GitHub |
 
