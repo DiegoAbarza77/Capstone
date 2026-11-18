@@ -103,6 +103,23 @@ También se pueden crear desde el panel de Supabase: **Edge Functions → Secret
 
 Sin esta clave, la app funciona, pero **no la lectura de documentos con IA ni la auditoría con IA**. Si no defines `OPENAI_API_KEY`, la función `gemini-proxy` usa `GEMINI_API_KEY` (clave de Google) como alternativa gratuita, que tiene cuota diaria y se satura con frecuencia. La función conserva el nombre `gemini-proxy` aunque hoy use OpenAI.
 
+#### Renovar o cambiar la llave de OpenAI
+
+La llave de OpenAI tiene fecha de vencimiento (se ve en platform.openai.com → **API keys**, columna *Expires*). Al vencer, la lectura de documentos y la auditoría con IA dejan de funcionar (error 502 o "no disponible"). Para renovarla, o para pasar el consumo a otra cuenta de OpenAI, **no hay que modificar ni recompilar la app**: solo se reemplaza el secreto.
+
+1. En platform.openai.com (con la cuenta que pagará el consumo) crea una llave nueva en **API keys**, con vencimiento lejano si es posible, y cópiala al momento.
+2. Reemplaza el secreto, por terminal o en **Edge Functions → Secrets → `OPENAI_API_KEY`** en el panel de Supabase, y vuelve a desplegar la función:
+
+```bash
+supabase secrets set OPENAI_API_KEY=tu-clave-nueva
+supabase functions deploy gemini-proxy
+```
+
+3. Prueba en la app leyendo una foto o un PDF con IA y revisa en el panel de administración, sección **Uso de IA**, que la llamada quede con estado 200.
+4. Revoca la llave anterior en OpenAI para no dejar dos llaves activas.
+
+> Anota la fecha de vencimiento y agenda un recordatorio unas dos semanas antes. Mantén también saldo en la cuenta de OpenAI.
+
 ### 3.4 Crear el primer administrador
 
 El panel de administración necesita al menos un `super_admin`, y ese primero no se puede crear desde la propia app.
