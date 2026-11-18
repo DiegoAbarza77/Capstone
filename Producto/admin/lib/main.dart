@@ -8,10 +8,28 @@ import 'file_downloader.dart';
 import 'login_screen.dart';
 import 'admin_supabase_service.dart';
 import 'beneficios_page.dart';
+import 'error_admin_logica.dart';
 import 'metricas_page.dart';
 import 'usuario_datos_dialog.dart';
 import 'usuarios_filtros_logica.dart';
 import 'uso_ia_page.dart';
+
+/// Convierte un error de Supabase (función de servidor, base de datos o
+/// autenticación) en un mensaje claro en español para mostrar en el panel.
+String _mensajeError(String accion, Object e) {
+  if (e is FunctionException) {
+    return mensajeErrorAdmin(
+        accion, e.status, e.details?.toString() ?? e.reasonPhrase ?? '');
+  }
+  if (e is PostgrestException) {
+    return mensajeErrorAdmin(accion, null, '${e.code ?? ''} ${e.message}');
+  }
+  if (e is AuthException) {
+    return mensajeErrorAdmin(
+        accion, int.tryParse(e.statusCode ?? ''), e.message);
+  }
+  return mensajeErrorAdmin(accion, null, e.toString());
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -2125,7 +2143,7 @@ class _UsersPageState extends State<UsersPage> {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('No se pudo cambiar el estado: $e'),
+                      content: Text(_mensajeError('cambiar el estado de la cuenta', e)),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -2163,7 +2181,7 @@ class _UsersPageState extends State<UsersPage> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al enviar correo: $e'),
+            content: Text(_mensajeError('enviar el correo de restablecimiento', e)),
             backgroundColor: Colors.red,
           ),
         );
@@ -2201,7 +2219,7 @@ class _UsersPageState extends State<UsersPage> {
                 final response = await Supabase.instance.client.functions
                     .invoke('delete-user', body: {'userId': docId});
                 if (response.status != 200) {
-                  throw Exception(response.data?.toString() ?? 'Error desconocido');
+                  throw FunctionException(status: response.status, details: response.data);
                 }
                 await widget.service.logAction(
                   action: 'DELETE_USER',
@@ -2214,7 +2232,7 @@ class _UsersPageState extends State<UsersPage> {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Error al eliminar usuario: $e'),
+                      content: Text(_mensajeError('eliminar el usuario', e)),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -4208,7 +4226,7 @@ class _AdminsManagementPageState extends State<AdminsManagementPage> {
       );
 
       if (response.status != 200) {
-        throw Exception(response.data?.toString() ?? 'Error desconocido');
+        throw FunctionException(status: response.status, details: response.data);
       }
 
       final String uid = (response.data as Map)['uid'].toString();
@@ -4228,11 +4246,13 @@ class _AdminsManagementPageState extends State<AdminsManagementPage> {
         );
       }
     } catch (e) {
+      final mensaje = _mensajeError('crear el administrador', e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al crear administrador: $e'),
+            content: Text(mensaje),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 8),
           ),
         );
       }
@@ -4259,7 +4279,7 @@ class _AdminsManagementPageState extends State<AdminsManagementPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al cambiar rol: $e'),
+            content: Text(_mensajeError('cambiar el rol', e)),
             backgroundColor: Colors.red,
           ),
         );
@@ -4287,7 +4307,7 @@ class _AdminsManagementPageState extends State<AdminsManagementPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al revocar acceso: $e'),
+            content: Text(_mensajeError('revocar el acceso', e)),
             backgroundColor: Colors.red,
           ),
         );
@@ -4315,7 +4335,7 @@ class _AdminsManagementPageState extends State<AdminsManagementPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al enviar restablecimiento de contraseña: $e'),
+            content: Text(_mensajeError('enviar el restablecimiento de contraseña', e)),
             backgroundColor: Colors.red,
           ),
         );
