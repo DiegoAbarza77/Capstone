@@ -88,16 +88,20 @@ supabase functions deploy create-admin
 supabase functions deploy delete-user
 ```
 
-### 3.3 Configurar la clave de Gemini
+### 3.3 Configurar la clave de la IA (OpenAI)
 
-1. Crea una clave en https://aistudio.google.com/apikey
-2. Guárdala como secreto del servidor, no en ningún archivo del proyecto:
+1. Entra a https://platform.openai.com, abre **Billing** y carga saldo (la recarga automática puede quedar apagada para limitar el gasto).
+2. En **API keys** crea una clave y cópiala en ese momento: OpenAI no la vuelve a mostrar completa.
+3. Guárdala, junto con el nombre del modelo, como secretos del servidor, no en ningún archivo del proyecto:
 
 ```bash
-supabase secrets set GEMINI_API_KEY=tu-clave-de-gemini
+supabase secrets set OPENAI_API_KEY=tu-clave-de-openai
+supabase secrets set OPENAI_MODEL=gpt-6-luna
 ```
 
-Sin esta clave, la app funciona, pero **no la lectura de documentos con IA ni la auditoría con IA**.
+También se pueden crear desde el panel de Supabase: **Edge Functions → Secrets**, con esos nombres exactos. Opcionalmente `OPENAI_REASONING_EFFORT` ajusta el razonamiento del modelo (por defecto `none`, lo más rápido y barato).
+
+Sin esta clave, la app funciona, pero **no la lectura de documentos con IA ni la auditoría con IA**. Si no defines `OPENAI_API_KEY`, la función `gemini-proxy` usa `GEMINI_API_KEY` (clave de Google) como alternativa gratuita, que tiene cuota diaria y se satura con frecuencia. La función conserva el nombre `gemini-proxy` aunque hoy use OpenAI.
 
 ### 3.4 Crear el primer administrador
 
@@ -164,7 +168,7 @@ SUPABASE_ANON_KEY=tu-anon-key
 
 Notas:
 - Los `.env` no se suben a git, están ignorados a propósito.
-- No pongas `GEMINI_API_KEY` aquí. Ya está guardada en el servidor.
+- No pongas `OPENAI_API_KEY` ni `GEMINI_API_KEY` aquí. Ya están guardadas en el servidor.
 - Si falta algún valor, la app no arranca.
 
 ---
@@ -211,7 +215,8 @@ Inicia sesión con el `super_admin` que creaste en el paso 3.4.
 | La app se queda en blanco o no arranca | Falta completar el `.env` | Revisa que `SUPABASE_URL` y `SUPABASE_ANON_KEY` tengan valor |
 | Error `RealtimeSubscribeException` | No se aplicó la migración `0006` | Aplícala |
 | "Forbidden" o error 403 al crear o borrar admins | Tu usuario no es `super_admin` | Repite el paso 3.4 |
-| La IA responde error 502 o "Faltan variables de entorno" | Falta el secreto de Gemini | Repite el paso 3.3 y vuelve a desplegar `gemini-proxy` |
+| La IA responde error 500 o "Faltan variables de entorno" | Falta el secreto `OPENAI_API_KEY` u `OPENAI_MODEL`, o su nombre está mal escrito | Revisa los nombres exactos (paso 3.3) y vuelve a desplegar `gemini-proxy` |
+| La IA responde error 502 | El proveedor rechazó la solicitud: saldo en cero, clave inválida o servicio caído | Revisa el saldo y la clave en platform.openai.com y el mensaje en Edge Functions → `gemini-proxy` → Logs |
 | Error 413, 415 o 429 en la IA | Archivo muy grande (máx. 8 MB), tipo no permitido, o más de 10 llamadas por minuto | Usa JPG, PNG, WebP o PDF menor a 8 MB, y espera un minuto |
 | El mapa o las rutas fallan | Token de Mapbox ausente o inválido | Revisa `MAPBOX_ACCESS_TOKEN` |
 | `flutter doctor` marca problemas en Visual Studio o Android | Falta ese componente | Solo hace falta si usas esa plataforma; en web puedes ignorarlo |
@@ -223,7 +228,7 @@ Inicia sesión con el `super_admin` que creaste en el paso 3.4.
 
 - `tag_ok/.env` y `admin/.env`
 - La clave `service_role` de Supabase
-- La `GEMINI_API_KEY`
+- La `OPENAI_API_KEY` (y la `GEMINI_API_KEY`, si la usas)
 - La carpeta `Base de datos/serviceAccountKey.json`, que quedó de la versión anterior con Firebase y ya no se usa
 
 ---
