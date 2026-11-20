@@ -1,0 +1,53 @@
+================================================================================
+PROYECTO: TAG OK 2.0 – Sistema de Gestión Vehicular Integral (Fase 2)
+ASIGNATURA: Capstone (PTY4614) – Ingeniería en Informática, Duoc UC
+CLIENTE: Grupo Sentte
+================================================================================
+
+1. ENLACE AL REPOSITORIO GITHUB
+--------------------------------------------------------------------------------
+URL: https://github.com/DiegoAbarza77/Capstone
+Rama principal (entrega final): main
+Visibilidad: Público
+
+2. EQUIPO DE DESARROLLO
+--------------------------------------------------------------------------------
+- Tomás Ortega   | Backend, Base de Datos y Seguridad   | t.ortega@duocuc.cl
+- Diego Abarza   | Integración IA y Gestión de Proyecto | di.abarza@duocuc.cl
+- Ignacio Rivera | Frontend, UX/UI y QA                 | ig.riveram@duocuc.cl
+
+3. RESUMEN TÉCNICO DEL REPOSITORIO
+--------------------------------------------------------------------------------
+Stack principal:
+- Frontend móvil y web: Flutter (Dart)
+- Backend y Base de Datos: Supabase (PostgreSQL, Auth, Storage, Edge Functions,
+  políticas de seguridad por fila RLS en 14 tablas y 17 migraciones versionadas)
+- Inteligencia Artificial: API de OpenAI (consumida mediante función de servidor
+  en Supabase para proteger las credenciales fuera de la aplicación cliente)
+
+Módulos implementados:
+- Mi Vehículo: ficha técnica, patentes en formato chileno, bóveda de documentos
+  legales (permiso de circulación, revisión técnica, SOAP y seguro) y semáforo
+  de vencimientos.
+- Registro Inteligente con IA: lectura asistida de documentos vehiculares,
+  boletas de taller, tickets de estacionamiento, boletas de combustible y boletas
+  de peaje bajo el flujo obligatorio Manual + IA -> Revisión -> Confirmar -> Guardar.
+- Mantenciones: bitácora de servicios, costos, historial cronológico y
+  programación de próximas mantenciones por fecha o kilometraje.
+- Estacionamientos: registro de gastos, cronómetro en segundo plano y captura
+  de ubicación GPS.
+- Combustible y carga: registro de cargas totales o parciales (litros o kWh),
+  actualización de odómetro, historial y estimación de rendimiento.
+- Beneficios y Dashboard "Mi Auto": catálogo filtrable de beneficios y vista
+  consolidada de alertas, gastos mensuales por categoría y accesos rápidos.
+- Panel Web de Administración (Backoffice): gestión de cuentas de usuarios,
+  administración del catálogo de beneficios y métricas globales anonimizadas.
+
+4. DOCUMENTACIÓN INCLUIDA EN EL REPOSITORIO
+--------------------------------------------------------------------------------
+En la raíz del repositorio se encuentra el archivo README.md documentado con:
+- Descripción general, arquitectura y estructura de carpetas del proyecto.
+- Requisitos previos y guía de configuración de variables de entorno (.env).
+- Instrucciones paso a paso para levantar la aplicación en ambiente local.
+- Scripts y 17 migraciones SQL de la base de datos en Supabase con reglas RLS.
+- Historial de commits por integrante evidenciando el control de versiones.
