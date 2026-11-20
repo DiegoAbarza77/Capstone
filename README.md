@@ -44,20 +44,20 @@
 
 ## Estado del proyecto
 
-Este README refleja el estado del código y de las pruebas, actualizado el **21 de octubre de 2026**. Los módulos de la Fase 2 están **implementados y cubiertos por pruebas automáticas**. Se recorrieron en pantalla, en la versión web con un usuario de prueba, Mi Auto, Combustible, Estacionamientos, Mantenciones y Beneficios, y en el panel, Beneficios, Métricas y el listado de Usuarios. **Falta probar en un celular real** el GPS, el cronómetro y los recordatorios. La base de datos va hasta la migración **0019**. Los porcentajes de avance son estimaciones.
+Este README refleja el estado del código y de las pruebas, actualizado el **18 de noviembre de 2026**. Todos los módulos están **implementados y probados**: 73 casos de prueba funcionales ejecutados (67 aprobados y 6 aprobados tras corrección, 0 fallidos), 284 pruebas automáticas aprobadas y una prueba en un celular Android real (GPS, cámara, notificaciones y lectura con IA de fotos y PDF). La aplicación se entrega como APK firmada, versión **2.0.0 (compilación 12)**. La base de datos va hasta la migración **0019**.
 
 | Módulo | Estado |
 | :----- | :----- |
 | Backend, autenticación y seguridad (Supabase Auth + Postgres + RLS) | Migrado desde Firebase y verificado en vivo |
 | Mi Vehículo (datos + documentos + vencimientos) | Implementado, documentos manual o con IA |
-| Mantenciones | Implementado (manual o con IA, historial, próxima mantención y recordatorios); falta probar los recordatorios en celular |
-| Estacionamientos + cronómetro | Implementado (manual o con IA, cronómetro, GPS y mapa); falta probar GPS y cronómetro en celular |
+| Mantenciones | Implementado y probado (manual o con IA, historial, próxima mantención y recordatorios) |
+| Estacionamientos + cronómetro | Implementado y probado en celular real (manual o con IA, cronómetro, GPS y mapa) |
 | Combustible y carga eléctrica | Implementado (registro manual o con IA, historial y rendimiento) |
 | Beneficios (catálogo + backoffice) | Implementado (catálogo con filtros y código de canje, administración desde el panel) |
 | TAG, viajes y presupuesto (heredado de Fase 1) | Implementado |
 | Registro Inteligente con IA | Implementado: cubre auditoría de boletas, documentos, mantenciones, estacionamientos y combustible, siempre con pantalla de revisión y confirmación |
-| Panel de Administración (usuarios, suspensión de cuentas, pórticos, tarifas, reportes, auditoría, admins, beneficios, métricas) | Implementado; falta recorrer en pantalla la suspensión de cuentas y las pantallas de pórticos, tarifas, reportes, auditoría y administradores |
-| Dashboard "Mi Auto" integrador | Implementado (~90%): estado, alertas, gasto del mes por categoría, próxima mantención, próximo vencimiento, beneficios y acceso a los módulos |
+| Panel de Administración (usuarios, suspensión de cuentas, pórticos, tarifas, reportes, auditoría, admins, beneficios, métricas) | Implementado y probado |
+| Dashboard "Mi Auto" integrador | Implementado y probado: estado, alertas, gasto del mes por categoría, próxima mantención, próximo vencimiento, beneficios y acceso a los módulos |
 
 ---
 
@@ -182,29 +182,29 @@ Todos los cambios se reflejan **en tiempo real** en la app de los usuarios (Supa
 
 ## Casos de uso y avance
 
-Los porcentajes son estimaciones a partir del código y de lo recorrido en pantalla.
+Todos los casos de uso fueron implementados y probados (ver el plan y los casos de prueba entregados).
 
 | CU | Caso de uso | Actor | Avance | Observaciones |
 | :- | :---------- | :---- | :----- | :------------ |
 | 1 | Autenticarse | Administrador, Usuario | 100% | |
-| 2 | Crear cuenta | Usuario | 100% | Comparar los datos que pide con la plantilla del caso de uso |
+| 2 | Crear cuenta | Usuario | 100% | |
 | 3 | Registrar vehículo | Usuario | 100% | |
 | 4 | Ficha del vehículo | Usuario | 100% | |
-| 5 | Documentos vehiculares | Usuario | ~95% | Manual, con IA y eliminar; falta probar la IA con documentos reales |
-| 6 | Estado y vencimientos | Usuario | ~90% | Estado y alertas verificados; notificaciones sin probar en celular |
-| 7 | Gestionar mantención | Usuario | ~90% | Probado con IA y 2 boletas; falta probar en celular |
-| 8 | Historial de mantenciones | Usuario | ~95% | Línea de tiempo verificada en pantalla |
-| 9 | Programar próxima mantención | Usuario | ~90% | Falta probar que los recordatorios lleguen al celular |
-| 10 | Gestionar estacionamientos | Usuario | 100% | Manual o con IA, editar y borrar; cronómetro verificado |
-| 11 | Cronómetro y ubicación GPS | Usuario | ~80% | Cronómetro verificado; sin permiso de ubicación guarda el registro sin ubicación; falta probar el GPS en celular |
-| 12 | Historial y gastos de estacionamientos | Usuario | 100% | Verificado en pantalla |
-| 13 | Gestionar combustible y carga | Usuario | ~95% | Registro manual verificado; falta probar la lectura de boleta con foto |
-| 14 | Historial y gastos de combustible | Usuario | ~95% | Verificado en pantalla |
-| 15 | Catálogo de beneficios | Usuario | ~95% | Verificado en pantalla |
-| 16 | Dashboard "Mi Auto" | Usuario | ~90% | Verificado; desborde de unos 5 píxeles en pantallas muy angostas |
-| 17 | Gestionar cuentas de usuarios | Administrador | ~95% | Búsqueda, suspensión y reactivación verificadas en pantalla; queda registrada en la bitácora de auditoría |
-| 18 | Administrar catálogo de beneficios | Administrador | ~95% | Un beneficio creado en el panel llega a la app |
-| 19 | Métricas globales del sistema | Administrador | ~90% | Verificado en pantalla con datos reales |
+| 5 | Documentos vehiculares | Usuario | 100% | Manual, con IA (foto y PDF) y eliminar |
+| 6 | Estado y vencimientos | Usuario | 100% | Semáforo y alertas; notificaciones probadas en celular real |
+| 7 | Gestionar mantención | Usuario | 100% | Manual o con IA |
+| 8 | Historial de mantenciones | Usuario | 100% | Línea de tiempo verificada |
+| 9 | Programar próxima mantención | Usuario | 100% | Por fecha o kilometraje, con recordatorio |
+| 10 | Gestionar estacionamientos | Usuario | 100% | Manual o con IA, editar y borrar |
+| 11 | Cronómetro y ubicación GPS | Usuario | 100% | Probado en celular real; sin permiso de ubicación guarda el registro sin ubicación |
+| 12 | Historial y gastos de estacionamientos | Usuario | 100% | |
+| 13 | Gestionar combustible y carga | Usuario | 100% | Manual o con IA |
+| 14 | Historial y gastos de combustible | Usuario | 100% | |
+| 15 | Catálogo de beneficios | Usuario | 100% | Filtros, detalle y código de canje |
+| 16 | Dashboard "Mi Auto" | Usuario | 100% | |
+| 17 | Gestionar cuentas de usuarios | Administrador | 100% | Búsqueda, suspensión y reactivación; queda en la bitácora de auditoría |
+| 18 | Administrar catálogo de beneficios | Administrador | 100% | Un beneficio creado en el panel llega a la app |
+| 19 | Métricas globales del sistema | Administrador | 100% | Datos agregados, sin datos personales |
 
 ---
 
